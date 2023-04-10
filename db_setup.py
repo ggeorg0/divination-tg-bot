@@ -59,6 +59,8 @@ def create_tables(tables, cursor):
             
 
 def setup_database():
+    logging.getLogger(mysql.connector.__name__).setLevel(logging.WARNING)
+    
     try:
         with establish_connection() as connection:
             cursor = connection.cursor()
@@ -69,9 +71,5 @@ def setup_database():
     except Error as err:
         logging.critical(err)
 
-def main():
-    logging.getLogger(mysql.connector.__name__).setLevel(logging.WARNING)
-    setup_database()
-
 if __name__ == '__main__':
-    main()
+    setup_database()

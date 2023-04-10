@@ -24,10 +24,11 @@ create:
 
 activate:
 
-`./.venv/bin/activate`
+`source ./.venv/bin/activate`
 
 #### deactivate
-to deactivate your virtual environment write in your terminal:
+deactivate your virtual environment by writing in your terminal:
+
 `deactivate`
 
 ### install requirements
