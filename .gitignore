@@ -131,3 +131,4 @@ dmypy.json
 # this project
 downloaded_books/
 .notes
+.vscode

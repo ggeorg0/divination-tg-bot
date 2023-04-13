@@ -10,7 +10,7 @@ import mysql.connector
 from mysql.connector import MySQLConnection, Error, errorcode, connect
 from pathlib import Path
 
-from bookparcer import BookSplitter
+from bookparser import BookSplitter
 
 BOOKS_DIR = "downloaded_books"
 NO_RIGHTS_MSG = "У вас нет прав на использование этого бота"
@@ -29,7 +29,7 @@ logging.basicConfig(
 )
 
 def check_for_admin(chat_id: int) -> bool:
-    # check userId in db
+    # TODO: check userId in db
     # return bool
     return True
 
@@ -43,9 +43,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def insert_book_into_db(file_path: str):
     try:
         with mysql.connector.connect(**DB_CONFIG) as connection:
-            parcer = BookSplitter()
-            parcer.read_book(file_path)
-            parcer.insert_into_db(connection)
+            parser = BookSplitter()
+            parser.read_book(file_path)
+            parser.insert_into_db(connection)
+            logging.info('insert_book_into_db complete!')
     except Error as err:
         logging.error(err)
 
@@ -65,6 +66,7 @@ async def new_book(update: Update, context: ContextTypes.DEFAULT_TYPE):
     print(path)
     await new_file.download_to_drive(path)
     insert_book_into_db(path)
+    logging.info('new_book handler complete!')
     # except Exception as exc:
     #     await context.bot.send_message(chat_id, text=f'Ошибка обработки: {exc}')
     #     raise exc

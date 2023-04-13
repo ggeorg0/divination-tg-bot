@@ -110,13 +110,14 @@ class BookSplitter:
     _book: Book
 
     def read_book(self, file_path: str) -> Book:
-        logging.info('reading book')
+        logging.info(f'reading book {file_path}')
         with open(file_path, "r", encoding='utf-8') as file:
             raw_text = file.readlines()
         self._book = Book(author=raw_text[0].strip(),
                           title=raw_text[1].strip(),
                           info=raw_text[3].strip(),
                           text="".join(raw_text[4:]))
+        logging.info(f'readed {file_path}')
         return self._book
     
     @property
@@ -129,16 +130,21 @@ class BookSplitter:
         if not new_book:
             new_book = self._book
         cursor = connection.cursor()
+        logging.info('selecting max book id from db')
         cursor.execute("SELECT MAX(id) FROM book")
-        max_book_id = cursor.fetchone()[0]
-        if max_book_id:
-            max_book_id = int(max_book_id)
+        max_book_id = cursor.fetchone()
+        logging.info(f'select result = "{max_book_id}"')
+        if max_book_id and max_book_id[0] != None:
+            max_book_id = int(max_book_id[0]) #type: ignore
         else:
             max_book_id = 0
-
+        logging.info(f'max book id = {max_book_id}')
+        logging.info('inserting book meta inf')
         cursor.execute(f"INSERT INTO book VALUES ('{max_book_id + 1}', {str(new_book)})")
+        logging.info('inserting pages')
         data_to_insert = [(max_book_id + 1, num + 1, p) for num, p in enumerate(new_book.pages)]
         cursor.executemany(INSERT_PAGES_QUERY, data_to_insert)
+        logging.info('pages was inserted')
 
 if __name__ == '__main__':
     # read_and_insert_books()
