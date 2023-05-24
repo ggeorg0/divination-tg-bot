@@ -10,7 +10,7 @@ import mysql.connector
 from mysql.connector import MySQLConnection, Error, errorcode, connect
 from pathlib import Path
 
-from bookparser import BookSplitter
+from bookparse import BookSplitter
 
 BOOKS_DIR = "downloaded_books"
 NO_RIGHTS_MSG = "У вас нет прав на использование этого бота"
