@@ -60,7 +60,7 @@ class Book:
     author: str
     title: str
     info: str
-    pages: List[str]
+    pages: Optional[List[str]]
 
     def __init__(self, 
                  author: str = "",
@@ -69,10 +69,12 @@ class Book:
                  text: Optional[str] = None):
         logging.info('init new book object')
         self.title = title or "NULL"
-        self.author = author or "NULL",
+        self.author = author or "NULL"
         self.info = info or "NULL"
         if text:
             self.pages = self.pages_from_text(text)
+        else:
+            self.pages = text       # None
 
     def __str__(self) -> str:
         return "'{self.title}', '{self.author}', '{self.info}'"
