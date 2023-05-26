@@ -77,7 +77,7 @@ class Book:
             self.pages = text       # None
 
     def __str__(self) -> str:
-        return "'{self.title}', '{self.author}', '{self.info}'"
+        return f"'{self.title}', '{self.author}', '{self.info}'"
 
     def pages_from_text(self, raw_text: str) -> List[str]:
         logging.info('read pages')

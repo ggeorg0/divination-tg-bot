@@ -21,7 +21,7 @@ class TestBook:
         assert book.title == "NULL"
         assert book.author == "NULL"
         assert book.info == "NULL"
-        assert book.text == None
+        assert book.pages == None
 
     def test_init_01(self):
         book = Book(author="Author",
@@ -31,7 +31,18 @@ class TestBook:
         assert book.author == "Author"
         assert book.title == "The Title"
         assert book.info == "The Info"
-        assert isinstance(book.text, list)
-        assert len(book.text) >= 1
-        
+        assert isinstance(book.pages, list)
+        assert len(book.pages) >= 1
+        # print("Pages of story:", len(book.pages))
 
+    def test_str_00(self):
+        book = Book(author='Author',
+                    title='The Title',
+                    info="The Info",
+                    text=None)
+        
+        desired = f"'{book.title}', '{book.author}', '{book.info}'"
+        assert book.__str__() == desired
+
+    
+        
