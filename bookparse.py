@@ -121,6 +121,7 @@ class BookSplitter:
         logging.info('inserting pages')
         data_to_insert = [(max_book_id + 1, num + 1, p) for num, p in enumerate(new_book.pages)]
         cursor.executemany(INSERT_PAGES_QUERY, data_to_insert)
+        connection.commit()
         logging.info('pages was inserted')
 
 
