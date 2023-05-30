@@ -116,6 +116,15 @@ class BookSplitter:
     _book: Book
 
     def read_book(self, file_path: str) -> Book:
+        """Reads book from `file_path`. 
+        First 4 lines must be formatted as follows:\n
+        ```
+        Author.
+        The Title.
+        \n
+        Some information about the book.
+        ```
+        """
         logging.info(f'reading book {file_path}')
         with open(file_path, "r", encoding='utf-8') as file:
             raw_text = file.readlines()
