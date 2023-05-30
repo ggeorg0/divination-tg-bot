@@ -1,9 +1,12 @@
+import pytest
+
+import bookparse
 from bookparse import Book
 
 class TestBook:
 
-    story = """
-    Медведи живут в тайге. Они едят ягоды, грибы и орехи. У них есть медведица и медвежата. 
+    # LLM generated text:
+    story = """Медведи живут в тайге. Они едят ягоды, грибы и орехи. У них есть медведица и медвежата. 
     Медведя зовут Миша. Он самый сильный медведь в лесу. 
     Миша любит свою семью и защищает их от других зверей. А медвежата любят играть с мамой-медведем. 
     Она их кормит, защищает и учит охотиться. 
@@ -36,13 +39,39 @@ class TestBook:
         # print("Pages of story:", len(book.pages))
 
     def test_str_00(self):
-        book = Book(author='Author',
-                    title='The Title',
+        book = Book(author="Author",
+                    title="The Title",
                     info="The Info",
                     text=None)
         
         desired = f"'{book.title}', '{book.author}', '{book.info}'"
         assert book.__str__() == desired
 
-    
+    def test_pages_from_text_00(self, monkeypatch):
+        monkeypatch.setattr("bookparse.LINE_SYMBOLS", 20)
+        monkeypatch.setattr("bookparse.PAGE_SYMBOLS", 6)
+
+        book = Book(author="Author",
+                    title="The Title",
+                    info="The Info",
+                    text=self.story)
+        desired_page = "Медведи живут в\nтайге. Они едят\nягоды, грибы и\nорехи. У них есть\nмедведица и\nмедвежата."
         
+        assert book.pages[0] == desired_page
+    
+    def test_add_lines_00(self, monkeypatch):
+        monkeypatch.setattr("bookparse.LINE_SYMBOLS", 13)
+
+        book = Book(author="Author",
+                    title="The Title",
+                    info="The Info",
+                    text=self.story)
+        words = ["abra", "cadabra,", "rumble", "table,", "brown!", "spoon..."]
+        desired_lines = ["abra cadabra,", "rumble table,", "brown!", "spoon...", ""]
+
+        lines = [""]
+        book._add_lines(lines, words)
+        
+        assert lines == desired_lines
+        
+

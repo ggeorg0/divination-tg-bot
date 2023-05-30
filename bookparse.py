@@ -80,23 +80,28 @@ class Book:
         return f"'{self.title}', '{self.author}', '{self.info}'"
 
     def pages_from_text(self, raw_text: str) -> List[str]:
+        """Split text by pages with `LINE_SYMBOLS` on a line
+        and `PAGE_SYMBOLS` lines on a page"""
         logging.info('read pages')
         paragraphs = [p for p in raw_text.split('\n') if p]
         lines = [""]
         for p in paragraphs:
             words = p.split()
             self._add_lines(lines, words)
-        pages =[[""]]
+        pages =[[]]
         for index, line in enumerate(lines):
             pages[-1].append(line)
-            if index % PAGE_SYMBOLS == 0:
+            if (index + 1) % PAGE_SYMBOLS == 0:
                 pages.append([])
          # list of lines to one string object for each page
         pages = ["\n".join(p) for p in pages]
         return pages
 
     
-    def _add_lines(self, lines, words):
+    def _add_lines(self, lines: List[str], words: List[str]) -> None:
+        """Adds words to last line if it's length < `LINE_SYMBOLS`, 
+        otherwise, moves the words to a new line.\n 
+        Мodifies `lines` argument"""
         for w in words:
             if len(lines[-1]) + len(w) < LINE_SYMBOLS:
                 if lines[-1]:
@@ -104,8 +109,7 @@ class Book:
                 lines[-1] = lines[-1] + w 
             else:
                 lines.append(w)
-        lines.append("")    
-        return lines
+        lines.append("") # new line at the end of the paragraph
 
 
 class BookSplitter:
