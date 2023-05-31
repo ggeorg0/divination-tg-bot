@@ -123,8 +123,3 @@ class BookSplitter:
         cursor.executemany(INSERT_PAGES_QUERY, data_to_insert)
         connection.commit()
         logging.info('pages was inserted')
-
-
-if __name__ == '__main__':
-    # read_and_insert_books()
-    print('Nothing here')

@@ -11,6 +11,7 @@ from mysql.connector import MySQLConnection, Error, errorcode, connect
 from pathlib import Path
 
 from bookparse import BookSplitter
+from database import Database
 
 BOOKS_DIR = "downloaded_books"
 NO_RIGHTS_MSG = "У вас нет прав на использование этого бота"
@@ -23,36 +24,28 @@ DB_CONFIG = {
     'database': 'book_divination'
 }
 
+db: Database
+
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
 )
 
-def check_for_admin(chat_id: int) -> bool:
-    # TODO: check userId in db
-    # return bool
-    return True
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
-    if check_for_admin(chat_id):
+    if db.check_for_admin(chat_id):
         await context.bot.send_message(chat_id, text=GREET_MSG)
     else:
         await context.bot.send_message(chat_id, text=NO_RIGHTS_MSG)
 
 def insert_book_into_db(file_path: str):
-    try:
-        with mysql.connector.connect(**DB_CONFIG) as connection:
-            parser = BookSplitter()
-            parser.read_book(file_path)
-            parser.insert_into_db(connection)
-            logging.info('insert_book_into_db complete!')
-    except Error as err:
-        logging.error(err)
+    book = BookSplitter().read_book(file_path)
+    db.insert_book(book)
 
 async def new_book(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
-    if not check_for_admin(chat_id):
+    if not db.check_for_admin(chat_id):
         # return
         context.bot.send_message(chat_id, text=NO_RIGHTS_MSG)
     # getting file and saving it to directory
@@ -85,4 +78,5 @@ def main():
     applaction.run_polling()
 
 if __name__ == '__main__':
+    db = Database(DB_CONFIG)
     main()
