@@ -97,29 +97,3 @@ class BookSplitter:
     @property
     def book(self):
         return self._book 
-    
-    def insert_into_db(self, 
-                       connection: MySQLConnection, 
-                       new_book: Optional[Book] = None):
-        """Insert book into database.\n
-        [!] This method will be removed and replaced by database 
-        class method in near future."""
-        if not new_book:
-            new_book = self._book
-        cursor = connection.cursor()
-        logging.info('selecting max book id from db')
-        cursor.execute("SELECT MAX(id) FROM book")
-        max_book_id = cursor.fetchone()
-        logging.info(f'select result = "{max_book_id}"')
-        if max_book_id and max_book_id[0] != None:
-            max_book_id = int(max_book_id[0]) #type: ignore
-        else:
-            max_book_id = 0
-        logging.info(f'max book id = {max_book_id}')
-        logging.info('inserting book meta inf')
-        cursor.execute(f"INSERT INTO book VALUES ('{max_book_id + 1}', {str(new_book)})")
-        logging.info('inserting pages')
-        data_to_insert = [(max_book_id + 1, num + 1, p) for num, p in enumerate(new_book.pages)]
-        cursor.executemany(INSERT_PAGES_QUERY, data_to_insert)
-        connection.commit()
-        logging.info('pages was inserted')
