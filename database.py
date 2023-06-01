@@ -1,11 +1,27 @@
 import logging
+from typing import Callable
 from itertools import count
 
 import mysql.connector
-from mysql.connector import MySQLConnection, Error
+from mysql.connector import MySQLConnection
+from mysql.connector import Error, errorcode
 
 from bookparse import Book
 
+# error handle decorator
+def handle_mysql_errors(func: Callable):
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except Error as err:
+            if err.errno == errorcode.ER_PARSE_ERROR:
+                logging.error(f'incorrect SQL syntax')
+            elif err.errno == errorcode.ER_NO_REFERENCED_ROW_2:
+                logging.error('foreign key constraint fails')
+            else:
+                logging.error(f'unexpected error: {err}')
+            logging.error(f'\t in {func.__name__} args={args}, kwargs={kwargs}')
+    return wrapper
 
 class Database:
     _ids = count(0)
@@ -22,13 +38,19 @@ class Database:
     def connect(self):
         try:
             self._connection = mysql.connector.connect(**self._config)
-        except Error as e:
-            print(e)
+        except Error as err:
+            if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
+                logging.error('invalid login details')
+            elif err.errno == errorcode.ER_BAD_DB_ERROR:
+                logging.error('database does not exsist')
+            else:
+                logging.error(f'unexpected error: {err} in `Database.connect`')
 
     def _validate_connection(self):
         if not self._connection.is_connected():
             self.connect()
 
+    @handle_mysql_errors
     def insert_book(self, book: Book) -> None:
         """Insert data about the book and pages into database."""
         self._validate_connection()
@@ -45,17 +67,16 @@ class Database:
                                 VALUES (%s, %s, %s)", marked_pages)
         self._connection.commit()
 
+    @handle_mysql_errors
     def check_for_admin(self, chat_id: int) -> bool:
         self._validate_connection()
         with self._connection.cursor() as cursor:
             cursor.execute(f"SELECT rights FROM chat WHERE id={chat_id}")
             rights = cursor.fetchone()
-            # TODO: remove print
-            print(rights)
             if rights:
                 return rights[0] == 'admin'
         return False
-
+    
 # only for testing Database
 # TODO: remove this code later
 if __name__ == '__main__':
