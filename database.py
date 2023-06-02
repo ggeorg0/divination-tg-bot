@@ -23,6 +23,7 @@ def handle_mysql_errors(func: Callable):
             logging.error(f'\t in {func.__name__} args={args}, kwargs={kwargs}')
     return wrapper
 
+
 class Database:
     _ids = count(0)
     _connection: MySQLConnection
@@ -71,15 +72,105 @@ class Database:
     def check_for_admin(self, chat_id: int) -> bool:
         self._validate_connection()
         with self._connection.cursor() as cursor:
-            cursor.execute(f"SELECT rights FROM chat WHERE id={chat_id}")
+            cursor.execute(f"SELECT rights FROM chat WHERE id = {chat_id}")
             rights = cursor.fetchone()
             if rights:
                 return rights[0] == 'admin'
         return False
     
-# only for testing Database
-# TODO: remove this code later
+    @handle_mysql_errors
+    def chat_status(self, chat_id: int) -> str | None:
+        """
+        Search chat status of `chat_id` in MySQL database.
+
+        Returns `'active'`, `'inactive'` or `None` if `chat_id` not found
+        """
+        self._validate_connection()
+        with self._connection.cursor() as cursor:
+            cursor.execute(f"SELECT chat_status FROM chat WHERE id = {chat_id}")
+            status = cursor.fetchone()
+            if status:
+                return status[0]
+        return None     # chat not exists
+    
+    @handle_mysql_errors
+    def set_chat_active(self, chat_id: int) -> None:
+        self._validate_connection()
+        with self._connection.cursor() as cursor:
+            cursor.execute(f"UPDATE chat SET chat_status = 'active' \
+                           WHERE id={chat_id}")
+        self._connection.commit()
+
+    @handle_mysql_errors
+    def record_new_chat(self, chat_id: int) -> None:
+        self._validate_connection()
+        with self._connection.cursor() as cursor:
+            cursor.execute(f"INSERT INTO chat (id, chat_status) \
+                            VALUES ({chat_id}, 'active')")
+        self._connection.commit()
+
+    @handle_mysql_errors
+    def search_book(self, rows_count: int, offset: int = 0):
+        """
+        Get list of available books in pairs (title, author)
+        """
+        self._validate_connection()
+        with self._connection.cursor() as cursor:
+            cursor.execute(f"SELECT id, title, author FROM book \
+                           ORDER BY id LIMIT {offset}, {rows_count}")
+            return cursor.fetchall()
+        
+    @handle_mysql_errors
+    def search_max_page(self, chat_id: int):
+        """
+        Returns max page number of user's book
+        """
+        self._validate_connection()
+        with self._connection.cursor() as cursor:
+            cursor.execute(f"SELECT MAX(num) FROM page WHERE book_id = \
+                           (SELECT book_id FROM chat WHERE id = {chat_id})")
+            max_page = cursor.fetchone()
+            if max_page != None:
+                return max_page[0]
+        return None 
+    
+    @handle_mysql_errors
+    def update_chat_book(self, chat_id: int, book_id):
+        self._validate_connection()
+        with self._connection.cursor() as cursor:
+            cursor.execute(f"UPDATE chat SET book_id = {book_id} \
+                            WHERE id = {chat_id}")
+        self._connection.commit()
+
+    @handle_mysql_errors
+    def book_metadata(self, book_id: int):
+        """
+        Get book metadata: title, author, description
+        """
+        self._validate_connection()
+        with self._connection.cursor() as cursor:
+            cursor.execute(f"SELECT title, author, info \
+                           FROM book WHERE id = {book_id}")
+            metadata = cursor.fetchone()
+            return metadata
+    
+    @handle_mysql_errors
+    def page_content(self, chat_id: int, page_num: int):
+        """
+        Text of page with number=`page_num` from user's book
+        with chat_id=`chat_id`
+        """
+        self._validate_connection()
+        with self._connection.cursor() as cursor:
+            cursor.execute(f"SELECT content FROM page WHERE \
+                            num = {page_num} AND book_id = \
+                            (SELECT book_id FROM chat WHERE id = {chat_id})")
+            page_text = cursor.fetchone()
+            if page_text != None:
+                return page_text[0]
+        return None
+    
+
 if __name__ == '__main__':
-    from adminbot import DB_CONFIG
-    db = Database(DB_CONFIG)
-    print(db.check_for_admin(1))
+    logging.warning("To run the bot, use a different .py file. \
+This class is needed only to communicate with the database.")
