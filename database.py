@@ -8,7 +8,7 @@ from mysql.connector import Error, errorcode
 
 from bookparse import Book
 
-# error handle decorator
+# MySQL Errors handling. Used as decorator
 def handle_mysql_errors(func: Callable):
     def wrapper(*args, **kwargs):
         try:

@@ -1,11 +1,5 @@
-import os
 import logging
-
-import mysql.connector
-from mysql.connector import MySQLConnection, Error, errorcode
 from typing import List, Optional
-
-from db_setup import establish_connection, use_database, DB_NAME
 
 LINE_SYMBOLS = 55
 PAGE_SYMBOLS = 50
@@ -72,10 +66,10 @@ class Book:
         lines.append("") # new line at the end of the paragraph
 
 
-class BookSplitter:
-    _book: Book
+class BookReader:
 
-    def read_book(self, file_path: str) -> Book:
+    @staticmethod
+    def read_book(file_path: str) -> Book:
         """Reads book from `file_path`. 
         First 4 lines must be formatted as follows:\n
         ```
@@ -88,12 +82,8 @@ class BookSplitter:
         logging.info(f'reading book {file_path}')
         with open(file_path, "r", encoding='utf-8') as file:
             raw_text = file.readlines()
-        self._book = Book(author=raw_text[0].strip(),
+        book = Book(author=raw_text[0].strip(),
                           title=raw_text[1].strip(),
                           info=raw_text[3].strip(),
                           text="".join(raw_text[4:]))
-        return self._book
-    
-    @property
-    def book(self):
-        return self._book 
+        return book
