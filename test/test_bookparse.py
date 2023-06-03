@@ -1,7 +1,7 @@
 import pytest
 
 import bookparse
-from bookparse import Book, BookSplitter
+from bookparse import Book, BookReader
 
 class TestBook:
 
@@ -74,7 +74,7 @@ class TestBook:
         
         assert lines == desired_lines
 
-class TestBookSplitter:
+class TestBookReader:
 
     # LLM generated text:
     book_corp = """Name Surname-Surname
@@ -105,15 +105,9 @@ But I couldn't get distracted by anything, or even sleep, because I didn't have 
             info="This book was written by myself, by Name Surname-Surname and so on...",
             text="")
 
-        splitter = BookSplitter()
-        book = splitter.read_book(path)
+        book = BookReader.read_book(path)
 
         assert desired_book.author == book.author
         assert desired_book.title == book.title
         assert desired_book.info == book.info
 
-    def test_book_property_00(self):
-        splitter = BookSplitter()
-
-        with pytest.raises(AttributeError):
-            splitter.book = Book()

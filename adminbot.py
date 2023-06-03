@@ -6,7 +6,7 @@ from telegram import Update, Message
 from telegram.ext import ApplicationBuilder, ContextTypes, filters
 from telegram.ext import CommandHandler, MessageHandler
 
-from bookparse import BookSplitter
+from bookparse import BookReader
 from database import Database
 
 BOOKS_DIR = "downloaded_books"
@@ -40,10 +40,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await context.bot.send_message(chat_id, text=NO_RIGHTS_MSG)
 
-def insert_book_into_db(file_path: str):
-    book = BookSplitter().read_book(file_path)
-    db.insert_book(book)
-
 async def download_file(message: Message) -> Path:
     attachment = message.effective_attachment
     new_file = await attachment.get_file()
@@ -59,7 +55,7 @@ async def new_book(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id, text=FILE_UPLOADED_MSG)
     try:
         path = await download_file(update.effective_message)
-        insert_book_into_db(path)
+        db.insert_book(BookReader.read_book(path))
     except UnicodeDecodeError as exc:
         await context.bot.send_message(chat_id, text=UNICODE_ERR_MSG)
         logging.error(exc)
