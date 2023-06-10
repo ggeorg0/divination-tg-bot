@@ -2,3 +2,4 @@ python-telegram-bot
 mysql-connector-python
 nltk
 pytest
+Pillow
