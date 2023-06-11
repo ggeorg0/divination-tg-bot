@@ -1,4 +1,6 @@
 from typing import Union
+import textwrap
+import functools
 
 from PIL import Image, ImageDraw, ImageFont
 
@@ -8,90 +10,139 @@ colorT = Union[tuple[int, int, int], str, None]
 class QuoteImage:
     _width: int = 1280
     _height: int = 720
-    border_color: colorT = (199, 163, 143)
-    background_color: colorT = "white"
-    ratio: int = 22
-    logo_path: str = "images/fake_logo.png"
-    logo: Image
-    _author_font: ImageFont
-    _title_font: ImageFont
-    _quote_font: ImageFont
+    _border_ratio: int
+    _logo: Image
+    _author_font: ImageFont.FreeTypeFont
+    _title_font: ImageFont.FreeTypeFont
+    _quote_font: ImageFont.FreeTypeFont
+    _background_color: colorT = "white"
+    _border_color: colorT = (199, 163, 143)
+    _quote_color: colorT = "black"
+    _author_color: colorT = "black"
+    _title_color: colorT = "black"
 
     def __init__(self, 
                  color_theme: colorT=(199, 163, 143),
-                 logo_path: str="images/logo.png",
-                 ratio: int=24):
-        # TODO: self attributes assignment
-        self.logo = Image.open(self.logo_path)
-        self._author_font = ImageFont.truetype('fonts/Ubuntu-Bold.ttf', 42)
-        self._title_font = ImageFont.truetype('fonts/Ubuntu-Bold.ttf', 28)
-        self._quote_font = ImageFont.truetype('georgiai.ttf', 48)
+                 logo_path: str="images/logo4.png",
+                 author_font_path: str="fonts/Ubuntu-Bold.ttf",
+                 title_font_path: str="fonts/Ubuntu-Bold.ttf",
+                 quote_font_path: str="georgiai.ttf",
+                 border_ratio: int=22):
+        self._logo = Image.open(logo_path)
+        self._author_font = ImageFont.truetype(author_font_path, 42)
+        self._title_font = ImageFont.truetype(title_font_path, 28)
+        self._quote_font = ImageFont.truetype(quote_font_path, 42)
+        self._border_ratio = border_ratio
+        self._border_color = color_theme
+    
+    @functools.cached_property
+    def _q_margin(self):
+        """margin between lines of quote"""
+        return self._quote_font.size / 2
+    
+    @functools.cached_property
+    def _q_line_h(self):
+        """height of line of quote in pixels"""
+        _, top, _, bottom = self._quote_font.getbbox('AbcАбв')
+        return bottom - top
+    
+    def _draw_wrapped_quote(self, 
+                           text: str,
+                           image_draw: ImageDraw.ImageDraw) -> None:
+        lines = []
+        for l in text.splitlines():
+            lines += textwrap.wrap(l, width=45)
 
-    def _text_size(self, image_draw: ImageDraw, text: str, font: ImageFont):
-        _, _, text_width, text_height = image_draw.textbbox(
-            xy=(0, 0),
+        if len(lines) > 5:
+            lines = lines[:5]
+            lines[-1] = lines[-1] + '...'
+
+        # line with margin:
+        wide_line = self._q_line_h + self._q_margin
+        
+        quote_height = wide_line * len(lines)
+        quote_pos = (self._height - quote_height) / 2
+        
+        for i, line in enumerate(lines):
+            line_w = image_draw.textlength(line, self._quote_font)
+            pos = ( (self._width - line_w) / 2, quote_pos + wide_line * i )
+            image_draw.text(
+                xy=pos,
+                text=line,
+                font=self._quote_font,
+                fill=self._quote_color)
+            
+    def _draw_author(self, text: str, image_draw: ImageDraw.ImageDraw):
+        im_w, im_h, k = self._width, self._height, self._border_ratio
+        text = textwrap.shorten(text, width=40, placeholder="...")
+        author_w = image_draw.textlength(text, self._author_font)
+        image_draw.text(
+            ( (im_w - author_w) / 2, 2.5 * im_h / k ), 
+            text=text, 
+            fill='black',
+            font=self._author_font, 
+            align='center')
+        
+    def _draw_title(self, text: str, image_draw: ImageDraw.ImageDraw):
+        im_w, im_h, k = self._width, self._height, self._border_ratio
+        text = textwrap.shorten(text, width=72, placeholder="...")
+        title_w = image_draw.textlength(text, self._title_font)
+        image_draw.text(
+            ((im_w - title_w) / 2, 5 * im_h / k ),
             text=text,
-            font=font
+            fill='black',
+            font=self._title_font,
+            align='center')
+
+    def _draw_borders(self, image_draw: ImageDraw.ImageDraw):
+        im_w, im_h, k = self._width, self._height, self._border_ratio
+        image_draw.rectangle(xy=(0, 0, im_w, im_h / k),
+                             fill=self._border_color)
+        image_draw.rectangle(xy=(0, (k - 1) * im_h / k, im_w, im_h),
+                             fill=self._border_color)
+        
+    def _paste_logo(self, image: Image.Image):
+        im_w, im_h, k = self._width, self._height, self._border_ratio
+        image.paste(im=self._logo, 
+            box=( (im_w - self._logo.width) // 2, 
+            (k - 2) * im_h // k - self._logo.height ), 
+            mask=self._logo
         )
-        return text_width, text_height
 
     def make(self, author: str, title: str, quote: str):
-        k = self.ratio
-        im_w = self._width
-        im_h = self._height
+        """Generate new picture of given quote"""
         image = Image.new(mode='RGB', 
-                          size=(im_w, im_h), 
-                          color=self.background_color)
-        
+                          size=(self._width, self._height), 
+                          color=self._background_color)
         drawing = ImageDraw.Draw(image)
-        author_w, author_h = self._text_size(drawing, author, self._author_font)
-        title_w, title_h = self._text_size(drawing, title, self._title_font)
-        quote_w, quote_h = self._text_size(drawing, quote, self._quote_font)
-        drawing.text(((im_w - author_w) / 2, 2.5 * im_h / k), 
-                     text=author, 
-                     fill='black',
-                     font=self._author_font, 
-                     align='center')
-        drawing.text(((im_w - title_w) / 2, 5 * im_h / k),
-                     text=title,
-                     fill='black',
-                     font=self._title_font,
-                     align='center')
-        drawing.text(((im_w - quote_w) / 2, (im_h - quote_h) / 2), 
-                     text=quote,
-                     fill='black',
-                     font=self._quote_font, 
-                     align='center')
-        drawing.rectangle(xy=(0, 0, im_w, im_h / k),
-                          fill=self.border_color)
-        drawing.rectangle(xy=(0, (k - 1) * im_h / k, im_w, im_h),
-                          fill=self.border_color)
-        image.paste(im=self.logo, 
-                    box=( (im_w - self.logo.width) // 2, 
-                          (k - 2) * im_h // k - self.logo.height ), 
-                    mask=self.logo)
+        self._draw_author(author, drawing)
+        self._draw_title(title, drawing)
+        self._draw_wrapped_quote(quote, drawing)
+        self._draw_borders(drawing)
+        self._paste_logo(image)
         return image
         
-        
-image_gen = QuoteImage()
 
-message = "А Балда над морем опять шумит\nДа чертям веревкой грозит."
-author = "А. С. Пушкин"
-title = "Сказка о попе и работнике его Балде"
+def test():
+    image_gen = QuoteImage()
 
-image = image_gen.make(author, title, message)
-image.show()
-image.save("test-image.png")
+    message = "А Балда над морем опять шумит\nДа чертям веревкой грозит. А Балда над морем опять шумит\nДа чертям веревкой грозит\nА Балда над морем опять шумит Да чертям веревкой грозитА Балда над морем опять шумит\nДа чертям веревкой грозит"
+    # message = "А Балда над морем опять шумит Да чертям веревкой грозит."
+    author = "А. С. Пушкин А. С. Пушкин А. С. Пушкин Пушкин"
+    title = "Сказка о попе и работнике его Балде Сказка о попе и работнике его Балде Балде"
 
+    print(len(title))
+    print(len(author))
+
+    image = image_gen.make(author, title, message)
+    image.show()
+    image.save("test-image.png")
+
+if __name__ == '__main__':
+    test()
 
 
     
-
-
-
-
-
-
 # width = 1280
 # height = 720
 
@@ -103,7 +154,7 @@ image.save("test-image.png")
 # k = 24
 
 # img = Image.new('RGB', (width, height), color='white')
-# logo = Image.open('images/fake_logo.png')
+# _logo = Image.open('images/fake_logo.png')
 
 # imgDraw = ImageDraw.drawing(img)
 
@@ -143,6 +194,6 @@ image.save("test-image.png")
 # imgDraw.rectangle(xy=(0, (k - 1) * height / k, width, height),
 #                   fill=fill_color)
 
-# img.paste(logo, ((width - logo.width) // 2, (k - 2) * height // k - logo.height), logo)
+# img.paste(_logo, ((width - _logo.width) // 2, (k - 2) * height // k - _logo.height), _logo)
 
 # img.show()
