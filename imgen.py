@@ -4,6 +4,8 @@ import functools
 
 from PIL import Image, ImageDraw, ImageFont
 
+QUOTE_LINES = 6
+QUOTE_WIDTH = 60
 
 colorT = Union[tuple[int, int, int], str, None]
 
@@ -22,8 +24,8 @@ class QuoteImage:
     _title_color: colorT = "black"
 
     def __init__(self, 
-                 color_theme: colorT=(199, 163, 143),
-                 logo_path: str="images/logo4.png",
+                 color_theme: colorT=(143, 143, 143),
+                 logo_path: str="images/logo2-5.png",
                  author_font_path: str="fonts/Ubuntu-Bold.ttf",
                  title_font_path: str="fonts/Ubuntu-Bold.ttf",
                  quote_font_path: str="georgiai.ttf",
@@ -31,7 +33,7 @@ class QuoteImage:
         self._logo = Image.open(logo_path)
         self._author_font = ImageFont.truetype(author_font_path, 42)
         self._title_font = ImageFont.truetype(title_font_path, 28)
-        self._quote_font = ImageFont.truetype(quote_font_path, 42)
+        self._quote_font = ImageFont.truetype(quote_font_path, 32)
         self._border_ratio = border_ratio
         self._border_color = color_theme
     
@@ -51,10 +53,10 @@ class QuoteImage:
                            image_draw: ImageDraw.ImageDraw) -> None:
         lines = []
         for l in text.splitlines():
-            lines += textwrap.wrap(l, width=45)
+            lines += textwrap.wrap(l, width=QUOTE_WIDTH)
 
-        if len(lines) > 5:
-            lines = lines[:5]
+        if len(lines) > QUOTE_LINES:
+            lines = lines[:QUOTE_LINES]
             lines[-1] = lines[-1] + '...'
 
         # line with margin:
@@ -74,7 +76,7 @@ class QuoteImage:
             
     def _draw_author(self, text: str, image_draw: ImageDraw.ImageDraw):
         im_w, im_h, k = self._width, self._height, self._border_ratio
-        text = textwrap.shorten(text, width=40, placeholder="...")
+        text = textwrap.shorten(text, width=QUOTE_WIDTH, placeholder="...")
         author_w = image_draw.textlength(text, self._author_font)
         image_draw.text(
             ( (im_w - author_w) / 2, 2.5 * im_h / k ), 
@@ -105,11 +107,11 @@ class QuoteImage:
         im_w, im_h, k = self._width, self._height, self._border_ratio
         image.paste(im=self._logo, 
             box=( (im_w - self._logo.width) // 2, 
-            (k - 2) * im_h // k - self._logo.height ), 
+            (k - 2) * im_h // k - self._logo.height), 
             mask=self._logo
         )
 
-    def make(self, author: str, title: str, quote: str):
+    def make(self, author: str, title: str, quote: str) -> Image.Image:
         """Generate new picture of given quote"""
         image = Image.new(mode='RGB', 
                           size=(self._width, self._height), 
@@ -126,8 +128,13 @@ class QuoteImage:
 def test():
     image_gen = QuoteImage()
 
-    message = "А Балда над морем опять шумит\nДа чертям веревкой грозит. А Балда над морем опять шумит\nДа чертям веревкой грозит\nА Балда над морем опять шумит Да чертям веревкой грозитА Балда над морем опять шумит\nДа чертям веревкой грозит"
-    # message = "А Балда над морем опять шумит Да чертям веревкой грозит."
+    message = """И вдруг настала тишина в церкви; послышалось вдали
+волчье завыванье, и скоро раздались тяжелые шаги,
+звучавшие по церкви; взглянув искоса, увидел он, что
+ведут какого-то приземистого, дюжего, косолапого
+человека. ведут какого-то приземистого, дюжего, косолапого
+человека. ведут какого-то приземистого, дюжего, косолапого
+человека."""
     author = "А. С. Пушкин А. С. Пушкин А. С. Пушкин Пушкин"
     title = "Сказка о попе и работнике его Балде Сказка о попе и работнике его Балде Балде"
 
