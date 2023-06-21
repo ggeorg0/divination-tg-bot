@@ -1,5 +1,6 @@
 import logging
 import os
+import io
 import asyncio
 
 from telegram import Update
@@ -9,6 +10,7 @@ from telegram.ext import CommandHandler, ConversationHandler, CallbackQueryHandl
 import nltk
 
 from database import Database
+from imgen import QuoteImage
 
 DB_CONFIG = {
     'host': '127.0.0.1',
@@ -68,6 +70,7 @@ LIST_H = 3
 MAX_BUTTON_CHARS = 50
 
 db: Database
+img_generator: QuoteImage 
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -174,6 +177,7 @@ async def set_book(update: Update, context: ContextTypes.DEFAULT_TYPE):
         book_info = db.book_metadata(book_id)
         await update.effective_message.edit_text(gather_summary_message(*book_info),
                                                  parse_mode='HTML')
+        context.chat_data[chat_id] = {"author": book_info[0], "title": book_info[1]}
         await asyncio.sleep(0.5)
         await context.bot.send_message(chat_id, text=gather_maxpage_message(chat_id), 
                                        parse_mode='HTML')
@@ -194,16 +198,30 @@ async def select_page(update: Update, context: ContextTypes.DEFAULT_TYPE):
     page_text = db.page_content(chat_id, selected_page)
     # TODO: save tokenize result (sentences) to cache 
     sentences = nltk.tokenize.sent_tokenize(page_text, language='russian')
-    context.chat_data[chat_id] = selected_page
+    context.chat_data[chat_id]["page"] = selected_page
     message = SELECT_SENT_MSG + MAX_SENT_PHRASE % len(sentences)
     await context.bot.send_message(chat_id, message, parse_mode='HTML')
     return "browse"
+
+async def send_quote_image(chat_id: int, 
+                             quote: str, 
+                             context: ContextTypes.DEFAULT_TYPE):
+    temp_memory = io.BytesIO()
+    img_generator.make(
+        context.chat_data[chat_id]["author"], 
+        context.chat_data[chat_id]["title"], 
+        quote).save(temp_memory, format='png')
+    temp_memory.seek(0)
+    temp_memory.name = "image.png"
+    # await context.bot.send_document(chat_id, temp_memory)
+    await context.bot.send_photo(chat_id, temp_memory)
+    temp_memory.close() 
 
 async def page_line(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logging.info('int `page_line`')
     chat_id = update.effective_chat.id
     try:
-        page_num = context.chat_data[chat_id]
+        page_num = context.chat_data[chat_id]["page"]
         page_text = db.page_content(chat_id, page_num)
         sents = nltk.tokenize.sent_tokenize(page_text, language='russian')
         sent_num = int(update.message.text)
@@ -219,7 +237,9 @@ async def page_line(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await context.bot.send_message(chat_id, VERIFY_MSG % (sent_num, page_num))
         await asyncio.sleep(1)
         await context.bot.send_message(chat_id, DIVINATION_MSG % sents[sent_num - 1], parse_mode='HTML')
-        context.chat_data.pop(chat_id, None)
+        await send_quote_image(chat_id, sents[sent_num - 1], context)
+        # context.chat_data.pop(chat_id, None)
+        # TODO
 
     return ConversationHandler.END
 
@@ -294,4 +314,5 @@ def run_bot():
 
 if __name__ == '__main__':
     db = Database(DB_CONFIG)
+    img_generator = QuoteImage()
     run_bot()
