@@ -79,6 +79,26 @@ class Database:
         return False
     
     @handle_mysql_errors
+    def users_counts(self) -> tuple[int, int, int]:
+        """
+        Counts bot users
+
+        Returns results in form `(total_count, active_users, admins)`
+        """
+        self._validate_connection()
+        protect_value = lambda val: 0 if val == None else val[0]
+        with self._connection.cursor() as cursor:
+            cursor.execute("SELECT COUNT(*) FROM chat")
+            total = protect_value(cursor.fetchone())
+            cursor.execute("SELECT COUNT(*) FROM chat\
+                            WHERE chat_status = 'active'")
+            active = protect_value(cursor.fetchone())
+            cursor.execute("SELECT COUNT(*) FROM chat\
+                            WHERE rights = 'admin'")
+            admins = protect_value(cursor.fetchone())
+        return (total, active, admins)
+    
+    @handle_mysql_errors
     def chat_status(self, chat_id: int) -> str | None:
         """
         Search chat status of `chat_id` in MySQL database.
