@@ -47,6 +47,9 @@ class Database:
             else:
                 logging.error(f'unexpected error: {err} in `Database.connect`')
 
+    def reconnect(self):
+        self._connection.reconnect()
+
     def _validate_connection(self):
         if not self._connection.is_connected():
             self.connect()
@@ -97,6 +100,29 @@ class Database:
                             WHERE rights = 'admin'")
             admins = protect_value(cursor.fetchone())
         return (total, active, admins)
+
+    @handle_mysql_errors
+    def search_admins(self) -> list[int]:
+        """
+        Returns list of admins ids
+        """
+        self._validate_connection()
+        with self._connection.cursor() as cursor:
+            cursor.execute("SELECT id FROM chat\
+                            WHERE rights = 'admin'")
+            results = cursor.fetchall()
+            return [id[0] for id in results]
+
+    @handle_mysql_errors    
+    def new_admin(self, chat_id):
+        """
+        Adds administrator role to given chat_id
+        """
+        self._validate_connection()
+        with self._connection.cursor() as cursor:
+            cursor.execute(f"UPDATE chat SET rights = 'admin'\
+                           WHERE id = {chat_id}")
+        self._connection.commit()
     
     @handle_mysql_errors
     def chat_status(self, chat_id: int) -> str | None:
