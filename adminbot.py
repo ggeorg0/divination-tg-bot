@@ -3,7 +3,7 @@ from pathlib import Path
 import logging
 
 from telegram import Update, Message
-from telegram.ext import ApplicationBuilder, ContextTypes, filters
+from telegram.ext import ApplicationBuilder, Defaults, ContextTypes, filters
 from telegram.ext import CommandHandler, MessageHandler, ConversationHandler
 
 from bookparse import BookReader
@@ -37,7 +37,7 @@ COUNTS_MSG = """<b>Статистика по чатам:</b>
 """
 SHOW_ADMINS_MSG = "<b>Список администраторов:</b>\n"
 NEW_ADMIN_INSTRUCTIONS_MSG = """Вы хотите добавить нового администратора.
-<b>Новый администратор будет иметь все права что и вы.
+<b>Новый администратор будет иметь все права, что и вы.
 Используйте эту команду с осторожностью. </b>\n
 Напишите id нового администратора.
 Чтобы узнать id, используйте /myid
@@ -75,7 +75,7 @@ def admin_check(action):
         if db.check_for_admin(chat_id):
             return await action(update, context, *args, **kwargs)
         else:
-            await context.bot.send_message(chat_id, text=NO_RIGHTS_MSG) 
+            await context.bot.send_message(chat_id, text=NO_RIGHTS_MSG)
     return wrapper
 
 @admin_check
@@ -86,8 +86,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 @admin_check    
 async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(update.effective_chat.id,
-                                   text=HELP_MSG,
-                                   parse_mode='HTML')
+                                   text=HELP_MSG)
 
 async def download_file(message: Message) -> Path:
     attachment = message.effective_attachment
@@ -123,16 +122,14 @@ async def users_counts(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """sends message with number of users"""
     chat_id = update.effective_chat.id
     await context.bot.send_message(chat_id,
-                                   text=COUNTS_MSG.format(*db.users_counts()),
-                                   parse_mode='HTML')
+                                   text=COUNTS_MSG.format(*db.users_counts()))
     
 @admin_check
 async def show_admins(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     admins = db.search_admins()
     await context.bot.send_message(chat_id,
-                                   text=SHOW_ADMINS_MSG + str(admins),
-                                   parse_mode='HTML')
+                                   text=SHOW_ADMINS_MSG + str(admins))
     
 async def my_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
@@ -141,8 +138,7 @@ async def my_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
 @admin_check
 async def new_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
-    await context.bot.send_message(chat_id, NEW_ADMIN_INSTRUCTIONS_MSG,
-                                    parse_mode='HTML')
+    await context.bot.send_message(chat_id, NEW_ADMIN_INSTRUCTIONS_MSG)
     return ADD_STATE # ConversationHandler state
 
 # I am going to add separate table to databse with \
@@ -174,7 +170,10 @@ async def reconnect_adminbot_db(update: Update, context: ContextTypes.DEFAULT_TY
     
 
 def main():
-    applaction = ApplicationBuilder().token(os.environ.get('TOKEN')).build()
+    defaults = Defaults(parse_mode='HTML')
+    applaction = ApplicationBuilder().defaults(defaults)             \
+                                     .token(os.environ.get('TOKEN')) \
+                                     .build()
     
     start_handler = CommandHandler('start', start)
     help_handler = CommandHandler('help', help)
