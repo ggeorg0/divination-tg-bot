@@ -124,7 +124,7 @@ class QuoteImage:
         self._paste_logo(image)
         return image
         
-
+# TODO: remove test()
 def test():
     image_gen = QuoteImage()
 

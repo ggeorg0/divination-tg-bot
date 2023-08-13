@@ -1,4 +1,5 @@
 import os
+import asyncio
 from pathlib import Path
 import logging
 
@@ -9,7 +10,7 @@ from telegram.ext import CommandHandler, MessageHandler, ConversationHandler
 from bookparse import BookReader
 from database import Database
 
-BOOKS_DIR = "downloaded_books"
+DOWNLOAD_DIR = "downloaded_books"
 
 NO_RIGHTS_MSG = "У вас нет прав на использование этого бота."
 GREET_MSG = "Добро пожаловать в бот-админку!"
@@ -20,11 +21,12 @@ HELP_MSG = """<b>Доступные действия:</b>
 - /addadmin
 - /reconnectdb
 - /myid
+- /clearcache
 - /logs
 - /help
 
 Чтобы загрузить книгу. Отправьте файл с расширением .txt.
-Первые четыре строчки файла должы содержать:<i>
+Первые четыре строчки файла должы быть такого вида:<i>
     Авторы.
     Название.
     [пустая строка]
@@ -91,7 +93,7 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def download_file(message: Message) -> Path:
     attachment = message.effective_attachment
     new_file = await attachment.get_file()
-    download_path = Path(BOOKS_DIR, attachment.file_name)
+    download_path = Path(DOWNLOAD_DIR, attachment.file_name)
     await new_file.download_to_drive(download_path)
     return download_path
 
@@ -167,7 +169,23 @@ async def reconnect_adminbot_db(update: Update, context: ContextTypes.DEFAULT_TY
     chat_id = update.effective_chat.id
     db.reconnect()
     await context.bot.send_message(chat_id, DB_RECONNECT_MSG)
-    
+
+@admin_check
+async def clear_download_cache(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
+    message = []
+    for f in os.listdir(DOWNLOAD_DIR):
+        try:
+            os.remove(os.path.join(DOWNLOAD_DIR, f))
+            message.append(f"{f}: deleted...")
+        except OSError as e:
+            message.append(f"<b>{f}</b>: {e}")
+    message = '\n'.join(message)
+    # split message by 2048 characters (4096 is limit for latin characters)
+    messages = [message[i:i+2048] for i in range(0, len(message), 2048)]
+    for m in messages:
+        await context.bot.send_message(chat_id, m)
+        await asyncio.sleep(1)
 
 def main():
     defaults = Defaults(parse_mode='HTML')
@@ -180,6 +198,7 @@ def main():
     user_counts_hadler = CommandHandler('stats', users_counts)
     show_admin_handler = CommandHandler('admins', show_admins)
     my_id_handler = CommandHandler('myid', my_id)
+    clear_cache = CommandHandler('clearcache', clear_download_cache)
     new_admin_handler = ConversationHandler(
         entry_points=[CommandHandler('addadmin', new_admin)],
         states={ADD_STATE: [MessageHandler(filters.TEXT ^ filters.COMMAND, 
@@ -195,6 +214,7 @@ def main():
         help_handler,
         user_counts_hadler,
         my_id_handler,
+        clear_cache,
         show_admin_handler,
         new_admin_handler,
         reconnect_handler,

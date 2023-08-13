@@ -95,6 +95,9 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id, text=INFO_MSG, parse_mode='HTML')
     
 async def clear(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Deprecated
+    """
     reply_markup = ReplyKeyboardRemove()
     await context.bot.send_message(chat_id=update.effective_chat.id, text='')
 
@@ -196,8 +199,8 @@ async def select_page(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await context.bot.send_message(chat_id, message, parse_mode='HTML')
         return ConversationHandler.END
     page_text = db.page_content(chat_id, selected_page)
-    # TODO: save tokenize result (sentences) to cache 
     sentences = nltk.tokenize.sent_tokenize(page_text, language='russian')
+    context.chat_data[chat_id]["sentences"] = sentences
     context.chat_data[chat_id]["page"] = selected_page
     message = SELECT_SENT_MSG + MAX_SENT_PHRASE % len(sentences)
     await context.bot.send_message(chat_id, message, parse_mode='HTML')
@@ -222,24 +225,23 @@ async def page_line(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     try:
         page_num = context.chat_data[chat_id]["page"]
-        page_text = db.page_content(chat_id, page_num)
-        sents = nltk.tokenize.sent_tokenize(page_text, language='russian')
+        sentences = context.chat_data[chat_id]["sentences"]
         sent_num = int(update.message.text)
-        if sent_num < 1 or sent_num > len(sents):
+        if sent_num < 1 or sent_num > len(sentences):
             raise ValueError
     except KeyError:
         await context.bot.send_message(chat_id, ERR_NO_PAGE)
     except ValueError:
-        message = ERR_SELECT_SENT_MSG + MAX_SENT_PHRASE % len(sents)
+        message = ERR_SELECT_SENT_MSG + MAX_SENT_PHRASE % len(sentences)
         await context.bot.send_message(chat_id, message, parse_mode='HTML')
         return "browse"
     else:
         await context.bot.send_message(chat_id, VERIFY_MSG % (sent_num, page_num))
         await asyncio.sleep(1)
-        await context.bot.send_message(chat_id, DIVINATION_MSG % sents[sent_num - 1], parse_mode='HTML')
-        await send_quote_image(chat_id, sents[sent_num - 1], context)
-        # context.chat_data.pop(chat_id, None)
-        # TODO
+        await context.bot.send_message(chat_id, DIVINATION_MSG % sentences[sent_num - 1], 
+                                       parse_mode='HTML')
+        await send_quote_image(chat_id, sentences[sent_num - 1], context)
+        context.chat_data[chat_id].pop("sentences")
 
     return ConversationHandler.END
 
@@ -247,6 +249,7 @@ async def cancel_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logging.info('in `cancel_action`')
     chat_id = update.effective_chat.id
     await context.bot.send_message(chat_id, CANCEL_ACTION_MSG)
+    context.chat_data[chat_id].pop("sentences", None)
     return ConversationHandler.END
 
 async def nothing_to_cancel(update: Update, сontext: ContextTypes.DEFAULT_TYPE):
