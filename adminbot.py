@@ -177,9 +177,9 @@ async def clear_download_cache(update: Update, context: ContextTypes.DEFAULT_TYP
     for f in os.listdir(DOWNLOAD_DIR):
         try:
             os.remove(os.path.join(DOWNLOAD_DIR, f))
-            message.append(f"{f}: <b>deleted...<b>")
+            message.append(f"{f}: deleted...")
         except OSError as e:
-            message.append(f"{f}: {e}")
+            message.append(f"<b>{f}</b>: {e}")
     message = '\n'.join(message)
     # split message by 2048 characters (4096 is limit for latin characters)
     messages = [message[i:i+2048] for i in range(0, len(message), 2048)]
