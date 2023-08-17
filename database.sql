@@ -2,7 +2,7 @@ CREATE SCHEMA `test_bot_db` DEFAULT CHARACTER SET utf8 ;
 USE `test_bot_db` ;
 
 -- tables creation
-CREATE TABLE IF NOT EXISTS `test_bot_db`.`book` (
+CREATE TABLE IF NOT EXISTS `book` (
     `id` SMALLINT UNSIGNED NOT NULL,
     `title` VARCHAR(1024) NULL,
     `author` VARCHAR(1024) NULL,
@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS `test_bot_db`.`book` (
 ) ENGINE = InnoDB;
 
 
-CREATE TABLE IF NOT EXISTS `test_bot_db`.`chat` (
+CREATE TABLE IF NOT EXISTS `chat` (
     `id` BIGINT UNSIGNED NOT NULL,
     `book_id` SMALLINT UNSIGNED NULL,
     `hex_color` CHAR(6) NULL,
@@ -19,22 +19,22 @@ CREATE TABLE IF NOT EXISTS `test_bot_db`.`chat` (
     INDEX `fk_chat_book_id_idx` (`book_id` ASC) VISIBLE,
     CONSTRAINT `fk_chat_book_id`
         FOREIGN KEY (`book_id`)
-        REFERENCES `test_bot_db`.`book` (`id`)
+        REFERENCES `book` (`id`)
 ) ENGINE = InnoDB;
 
 
-CREATE TABLE IF NOT EXISTS `test_bot_db`.`page` (
+CREATE TABLE IF NOT EXISTS `page` (
     `book_id` SMALLINT UNSIGNED NOT NULL,
     `num` MEDIUMINT NOT NULL,
     `content` VARCHAR(4096) NULL,
     PRIMARY KEY (`book_id`, `num`),
     CONSTRAINT `fk_page_book_id`
         FOREIGN KEY (`book_id`)
-        REFERENCES `test_bot_db`.`book` (`id`)
+        REFERENCES `book` (`id`)
 ) ENGINE = InnoDB;
 
 
-CREATE TABLE IF NOT EXISTS `test_bot_db`.`role` (
+CREATE TABLE IF NOT EXISTS `role` (
     `id` INT UNSIGNED NOT NULL,
     `name` VARCHAR(255) NOT NULL,
     `info` VARCHAR(1024) NULL,
@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS `test_bot_db`.`role` (
 ) ENGINE = InnoDB;
 
 
-CREATE TABLE IF NOT EXISTS `test_bot_db`.`chat_role` (
+CREATE TABLE IF NOT EXISTS `chat_role` (
     `chat_id` BIGINT UNSIGNED NOT NULL,
     `role_id` INT UNSIGNED NOT NULL,
     `grant_date` DATE NOT NULL,
@@ -52,10 +52,10 @@ CREATE TABLE IF NOT EXISTS `test_bot_db`.`chat_role` (
     INDEX `fk_chat_role_role_id_idx` (`role_id` ASC) INVISIBLE,
     CONSTRAINT `fk_chat_role_chat_id`
         FOREIGN KEY (`chat_id`)
-        REFERENCES `test_bot_db`.`chat` (`id`),
+        REFERENCES `chat` (`id`),
     CONSTRAINT `fk_chat_role_role_id`
         FOREIGN KEY (`role_id`)
-        REFERENCES `test_bot_db`.`role` (`id`)
+        REFERENCES `role` (`id`)
 ) ENGINE = InnoDB;
 
 

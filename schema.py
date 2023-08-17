@@ -40,10 +40,13 @@ CREATE_STATEMENTS = {}
 
 CREATE_STATEMENTS['schema'] = """
 CREATE SCHEMA `test_bot_db` DEFAULT CHARACTER SET utf8 ;
+"""
+
+CREATE_STATEMENTS['use schema'] = """
 USE `test_bot_db`;
 """
 
-CREATE_STATEMENTS['book_table'] = """
+CREATE_STATEMENTS['table book'] = """
 CREATE TABLE IF NOT EXISTS `book` (
     `id` SMALLINT UNSIGNED NOT NULL,
     `title` VARCHAR(1024) NULL,
@@ -53,7 +56,7 @@ CREATE TABLE IF NOT EXISTS `book` (
 ) ENGINE = InnoDB;
 """
 
-CREATE_STATEMENTS['chat_table'] = """
+CREATE_STATEMENTS['table chat'] = """
 CREATE TABLE IF NOT EXISTS `chat` (
     `id` BIGINT UNSIGNED NOT NULL,
     `book_id` SMALLINT UNSIGNED NULL,
@@ -66,7 +69,7 @@ CREATE TABLE IF NOT EXISTS `chat` (
 ) ENGINE = InnoDB;
 """
 
-CREATE_STATEMENTS['page_table'] = """
+CREATE_STATEMENTS['table page'] = """
 CREATE TABLE IF NOT EXISTS `page` (
     `book_id` SMALLINT UNSIGNED NOT NULL,
     `num` MEDIUMINT NOT NULL,
@@ -79,7 +82,7 @@ CREATE TABLE IF NOT EXISTS `page` (
 """
 
 
-CREATE_STATEMENTS['role_table'] = """
+CREATE_STATEMENTS['table role'] = """
 CREATE TABLE IF NOT EXISTS `role` (
     `id` INT UNSIGNED NOT NULL,
     `name` VARCHAR(255) NOT NULL,
@@ -90,7 +93,7 @@ CREATE TABLE IF NOT EXISTS `role` (
 """
 
 
-CREATE_STATEMENTS['chat_role_table'] = """
+CREATE_STATEMENTS['table chat_role'] = """
 CREATE TABLE IF NOT EXISTS `chat_role` (
     `chat_id` BIGINT UNSIGNED NOT NULL,
     `role_id` INT UNSIGNED NOT NULL,
@@ -107,18 +110,17 @@ CREATE TABLE IF NOT EXISTS `chat_role` (
 ) ENGINE = InnoDB;
 """
 
-CREATE_STATEMENTS['chat_role_BEFORE_INSERT_trigger'] = """
-DELIMITER $$
+CREATE_STATEMENTS['trigger chat_role_BEFORE_INSERT'] = """
 CREATE TRIGGER `chat_role_BEFORE_INSERT` BEFORE INSERT ON `chat_role`
 FOR EACH ROW
 BEGIN
 	IF NEW.grant_date <= CURDATE() THEN
 		SET NEW.grant_date = CURDATE();
 	END IF;
-END$$
+END
 """
 
-CREATE_STATEMENTS['chat_role_view_view'] = """
+CREATE_STATEMENTS['view chat_role_view'] = """
 CREATE OR REPLACE VIEW chat_role_view AS
     SELECT chat_id, role.name as role_name, expire_date
 		FROM chat_role INNER JOIN role 
@@ -126,7 +128,7 @@ CREATE OR REPLACE VIEW chat_role_view AS
 		WHERE chat_role.grant_date <= CURDATE();
 """
 
-CREATE_STATEMENTS['role_expiration_event'] = """
+CREATE_STATEMENTS['event role_expiration'] = """
 CREATE EVENT role_expiration
     ON SCHEDULE
         EVERY 1 DAY
