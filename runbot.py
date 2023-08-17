@@ -6,7 +6,8 @@ import asyncio
 from telegram import Update
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardRemove
 from telegram.ext import ApplicationBuilder, ContextTypes, filters
-from telegram.ext import CommandHandler, ConversationHandler, CallbackQueryHandler, MessageHandler, InvalidCallbackData
+from telegram.ext import CommandHandler, ConversationHandler, CallbackQueryHandler, MessageHandler
+from telegram.ext import InvalidCallbackData, Defaults 
 import nltk
 
 from database import Database
@@ -92,7 +93,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
 async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
-    await context.bot.send_message(chat_id, text=INFO_MSG, parse_mode='HTML')
+    await context.bot.send_message(chat_id, text=INFO_MSG)
     
 async def clear(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
@@ -178,12 +179,10 @@ async def set_book(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         db.update_chat_book(chat_id, book_id)
         book_info = db.book_metadata(book_id)
-        await update.effective_message.edit_text(gather_summary_message(*book_info),
-                                                 parse_mode='HTML')
+        await update.effective_message.edit_text(gather_summary_message(*book_info))
         context.chat_data[chat_id] = {"author": book_info[0], "title": book_info[1]}
         await asyncio.sleep(0.5)
-        await context.bot.send_message(chat_id, text=gather_maxpage_message(chat_id), 
-                                       parse_mode='HTML')
+        await context.bot.send_message(chat_id, text=gather_maxpage_message(chat_id))
     return ConversationHandler.END
 
 async def select_page(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -196,14 +195,14 @@ async def select_page(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ConversationHandler.END 
     if selected_page < 1 or selected_page > max_page:
         message = ERR_SELECT_PAGE_MSG + MAX_PAGE_PHRASE % max_page
-        await context.bot.send_message(chat_id, message, parse_mode='HTML')
+        await context.bot.send_message(chat_id, message)
         return ConversationHandler.END
     page_text = db.page_content(chat_id, selected_page)
     sentences = nltk.tokenize.sent_tokenize(page_text, language='russian')
     context.chat_data[chat_id]["sentences"] = sentences
     context.chat_data[chat_id]["page"] = selected_page
     message = SELECT_SENT_MSG + MAX_SENT_PHRASE % len(sentences)
-    await context.bot.send_message(chat_id, message, parse_mode='HTML')
+    await context.bot.send_message(chat_id, message)
     return "browse"
 
 async def send_quote_image(chat_id: int, 
@@ -233,13 +232,12 @@ async def page_line(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await context.bot.send_message(chat_id, ERR_NO_PAGE)
     except ValueError:
         message = ERR_SELECT_SENT_MSG + MAX_SENT_PHRASE % len(sentences)
-        await context.bot.send_message(chat_id, message, parse_mode='HTML')
+        await context.bot.send_message(chat_id, message)
         return "browse"
     else:
         await context.bot.send_message(chat_id, VERIFY_MSG % (sent_num, page_num))
         await asyncio.sleep(1)
-        await context.bot.send_message(chat_id, DIVINATION_MSG % sentences[sent_num - 1], 
-                                       parse_mode='HTML')
+        await context.bot.send_message(chat_id, DIVINATION_MSG % sentences[sent_num - 1])
         await send_quote_image(chat_id, sentences[sent_num - 1], context)
         context.chat_data[chat_id].pop("sentences")
 
@@ -275,7 +273,10 @@ async def handle_invalid_button(update: Update, context: ContextTypes.DEFAULT_TY
     await update.effective_message.edit_text(INVALID_BUTTON_MSG)
 
 def run_bot():
-    application = ApplicationBuilder().token(os.environ.get('TOKEN')).build()
+    defaults = Defaults(parse_mode='HTML')
+    application = ApplicationBuilder().defaults(defaults)             \
+                                      .token(os.environ.get('TOKEN')) \
+                                      .build()
 
     start_handler = CommandHandler('start', start)
 
