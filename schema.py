@@ -5,6 +5,7 @@ WARN_MSG = """built-in dict class has the ability to remember insertion order in
 your Python version is %s.%s.%s. It means the table creation order may be incorrect."""
 
 CREATE_STATEMENTS = {}
+INSERT_STATEMENTS = {}
 
 CREATE_STATEMENTS['schema'] = """
 CREATE SCHEMA `test_bot_db` DEFAULT CHARACTER SET utf8 ;
@@ -104,6 +105,20 @@ CREATE EVENT role_expiration
     COMMENT 'Check expiration date of user role every day at 3 am'
     DO
         DELETE FROM chat_role WHERE CURDATE() > chat_role.expiration;
+"""
+
+
+INSERT_STATEMENTS['use schema'] = """
+USE `test_bot_db`;
+"""
+INSERT_STATEMENTS['user role'] = """
+INSERT INTO role (id, name, info) VALUES (1, 'user', 'Ordinary bot user. Default role.');
+"""
+INSERT_STATEMENTS['admin role'] = """
+INSERT INTO role (id, name, info) VALUES (2, 'admin', 'User has ascess to the bot-admin');
+"""
+INSERT_STATEMENTS['banned role'] = """
+INSERT INTO role (id, name, info) VALUES (3, 'banned', 'User banned from using the bot');
 """
 
 ver = sys.version_info
