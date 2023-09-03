@@ -85,4 +85,7 @@ CREATE EVENT role_expiration
         STARTS CURDATE() + INTERVAL 1 DAY + INTERVAL 3 HOUR
     COMMENT 'Check expiration date of user role every day at 3 am'
     DO
-        DELETE FROM chat_role WHERE CURDATE() > chat_role.expiration;
+        DELETE FROM chat_role WHERE CURDATE() > chat_role.expire_date;
+
+
+INSERT INTO chat_role VALUES (chat_id, (SELECT id FROM role WHERE name = 'admin'), CURDATE(), expire_date)
