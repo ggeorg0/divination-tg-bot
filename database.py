@@ -140,21 +140,6 @@ class Database:
             cursor.execute(statement, data)
         self._connection.commit()
     
-    # @handle_mysql_errors
-    # def chat_status(self, chat_id: int) -> str | None:
-    #     """
-    #     Search chat status of `chat_id` in MySQL database.
-
-    #     Returns `'active'`, `'inactive'` or `None` if `chat_id` not found
-    #     """
-    #     self._validate_connection()
-    #     with self._connection.cursor() as cursor:
-    #         cursor.execute(f"SELECT chat_status FROM chat WHERE id = {chat_id}")
-    #         status = cursor.fetchone()
-    #         if status:
-    #             return status[0]
-    #     return None     # chat not exists
-
     @handle_mysql_errors
     def check_user_exist(self, chat_id: int) -> bool:
         """
@@ -181,14 +166,6 @@ class Database:
             cursor.execute(f"SELECT chat_id FROM chat_role_view \
                              WHERE role_name = 'banned'")
             return [row[0] for row in cursor.fetchall()]
-    
-    # @handle_mysql_errors
-    # def set_chat_active(self, chat_id: int) -> None:
-    #     self._validate_connection()
-    #     with self._connection.cursor() as cursor:
-    #         cursor.execute(f"UPDATE chat SET chat_status = 'active' \
-    #                        WHERE id={chat_id}")
-    #     self._connection.commit()
 
     @handle_mysql_errors
     def record_new_chat(self, chat_id: int) -> None:
@@ -271,21 +248,3 @@ class Database:
 if __name__ == '__main__':
     logging.warning("To run the bot, use a different .py file. \
 This class is needed only to communicate with the database.")
-    # import os
-    # DB_CONFIG = {
-    # 'host': '127.0.0.1',
-    # 'user': os.environ.get('DB_USER'),
-    # 'password': os.environ.get('DB_PASS'),
-    # 'database': 'test_bot_db'
-    # }
-    # db = Database(DB_CONFIG)
-    # id = 1
-    # print(db.check_for_admin(id))
-    # print(db.check_for_admin(2))
-    # print(db.check_for_admin(7))
-    # print(db.check_for_admin(3))
-    # print(db.check_for_admin(555))
-    # print(db.new_admin(id, datetime.date(2021, 3, 14)))
-    
-    
-
