@@ -180,7 +180,10 @@ class Database:
         self._validate_connection()
         with self._connection.cursor() as cursor:
             cursor.execute(f"INSERT INTO chat (id) \
-                            VALUES ({chat_id})")
+                             VALUES ({chat_id})")
+            cursor.execute(f"INSERT INTO chat_role VALUES ({chat_id}, \
+                             (SELECT id FROM role WHERE name = 'user'), \
+                             CURDATE(), NULL)")
         self._connection.commit()
 
     @handle_mysql_errors
