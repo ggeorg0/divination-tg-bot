@@ -47,6 +47,9 @@ NEW_ADMIN_INSTRUCTIONS_MSG = """Вы хотите добавить нового 
 ADMIN_ADDED_MSG = "Администратор добавлен. Для проверки используйте /admins"
 INVALID_ID_MSG = "Ошибка добавления нового администатора с таким id. \
 Попробуйте ещё раз. Для отмены напишите /cancel"
+INVALID_BAN_ID_MSG = "Ошибка! Невозможно забанить пользователей \
+с такими id или они уже забанены"
+SUCCESS_BAN_MSG = "Вы забанили этих пользователей"
 CANCEL_MSG = "Действие отменено"
 FILE_UPLOADED_MSG = "Файл получен. Обработка..."
 FILE_DONE_MSG = "Файл загружен в базу данных!"
@@ -187,6 +190,16 @@ async def clear_download_cache(update: Update, context: ContextTypes.DEFAULT_TYP
         await context.bot.send_message(chat_id, m)
         await asyncio.sleep(1)
 
+async def ban_chats(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
+    try:
+        ban_ids = list(map(int, context.args))
+        if db.ban_users(ban_ids) == None:
+            raise ValueError
+        await context.bot.send_message(chat_id, SUCCESS_BAN_MSG)
+    except ValueError:
+        await context.bot.send_message(chat_id, INVALID_BAN_ID_MSG)
+
 def main():
     defaults = Defaults(parse_mode='HTML')
     applaction = ApplicationBuilder().defaults(defaults)             \
@@ -199,6 +212,7 @@ def main():
     show_admin_handler = CommandHandler('admins', show_admins)
     my_id_handler = CommandHandler('myid', my_id)
     clear_cache = CommandHandler('clearcache', clear_download_cache)
+    ban_chats_handler = CommandHandler('ban', ban_chats)
     new_admin_handler = ConversationHandler(
         entry_points=[CommandHandler('addadmin', new_admin)],
         states={ADD_STATE: [MessageHandler(filters.TEXT ^ filters.COMMAND, 
@@ -215,6 +229,7 @@ def main():
         user_counts_hadler,
         my_id_handler,
         clear_cache,
+        ban_chats_handler,
         show_admin_handler,
         new_admin_handler,
         reconnect_handler,
