@@ -284,6 +284,9 @@ async def handle_invalid_button(update: Update, context: ContextTypes.DEFAULT_TY
     await update.callback_query.answer()
     await update.effective_message.edit_text(INVALID_BUTTON_MSG)
 
+async def update_bans(_: ContextTypes.DEFAULT_TYPE):
+    banned_chats.update(db.get_banned_users())
+
 def run_bot():
     defaults = Defaults(parse_mode='HTML')
     application = ApplicationBuilder().defaults(defaults)             \
@@ -325,6 +328,9 @@ def run_bot():
     application.add_handler(unknown_command_handler)
 
     application.add_handler(CallbackQueryHandler(handle_invalid_button))
+
+    # update banned users every 5 minutes
+    application.job_queue.run_repeating(update_bans, interval=60*5)
 
     application.run_polling()
 
