@@ -172,9 +172,9 @@ class Database:
         """
         Insert new chat into database
 
-        When chat with given id already exists an
-        'incorrect SQL syntax' exeption occurs.
+        When chat with given id already exists a MySQL exception occurs.
         Exception handled by internal function `database.handle_mysql_errors`
+        (as other `Database` methods)
         and returns `None`
         """
         self._validate_connection()
@@ -185,6 +185,27 @@ class Database:
                              (SELECT id FROM role WHERE name = 'user'), \
                              CURDATE(), NULL)")
         self._connection.commit()
+    
+    @handle_mysql_errors
+    def ban_users(self, chat_ids: Sequence[int]) -> bool | None:
+        """
+        Add role 'banned' to given `chat_ids`.
+
+        When chat with given id already exists a MySQL exception occurs.
+        Exception handled by internal function `database.handle_mysql_errors` 
+        (as other `Database` methods)
+        and returns `None`
+        """
+        self._validate_connection()
+        with self._connection.cursor() as cursor:
+            statement = "INSERT INTO chat_role VALUES \
+                          (%s, (SELECT id FROM role WHERE name = 'banned'), \
+                          CURDATE(), NULL)"
+            # add extra dimesion for separate rows
+            chat_ids = [[chat] for chat in chat_ids]
+            cursor.executemany(statement, chat_ids)
+        self._connection.commit()
+        return True
 
     @handle_mysql_errors
     def search_book(self, rows_count: int, offset: int = 0):
