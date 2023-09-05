@@ -11,11 +11,10 @@ from bookparse import Book
 
 # MySQL Errors handling. Used as decorator
 def handle_mysql_errors(func: Callable):
-    def wrapper(*args, **kwargs):
+    def wrapper(db_obj, *args, **kwargs):
         try:
-            return func(*args, **kwargs)
+            return func(db_obj, *args, **kwargs)
         except Error as err:
-            # TODO
             if err.errno == errorcode.ER_PARSE_ERROR:
                 logging.error(f'incorrect SQL syntax')
             elif err.errno == errorcode.ER_NO_REFERENCED_ROW_2:
@@ -23,6 +22,8 @@ def handle_mysql_errors(func: Callable):
             else:
                 logging.error(f'unexpected error: {err}')
             logging.error(f'\t in {func.__name__} args={args}, kwargs={kwargs}')
+            if hasattr(db_obj, '_connection') and db_obj._connection.is_connected():
+                db_obj._connection.rollback()
     return wrapper
 
 
@@ -40,7 +41,8 @@ class Database:
 
     def connect(self):
         try:
-            self._connection = mysql.connector.connect(**self._config)
+            self._connection = mysql.connector.connect(**self._config, 
+                                                       autocommit=True)
         except Error as err:
             if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
                 logging.error('invalid login details')
@@ -60,6 +62,7 @@ class Database:
     def insert_book(self, book: Book) -> None:
         """Insert data about the book and pages into database."""
         self._validate_connection()
+        self._connection.start_transaction()
         with self._connection.cursor() as cursor:
             cursor.execute("SELECT MAX(id) FROM book")
             new_book_id = cursor.fetchone()
@@ -114,15 +117,16 @@ class Database:
             cursor.execute("SELECT chat_id FROM chat_role_view \
                             WHERE role_name = 'admin'")
             results = cursor.fetchall()
-            return [row[0] for row in results]
+        return [row[0] for row in results]
 
-    @handle_mysql_errors    
+    @handle_mysql_errors
     def new_admin(self, chat_id, expire_date: Optional[datetime.date] = None):
         """
         Adds administrator role to given `chat_id` with given `expire_date`.
         If the user is already an admin, expire date is updated 
         """
         self._validate_connection()
+        self._connection.start_transaction()
         with self._connection.cursor() as cursor:
             cursor.execute(f"SELECT COUNT(chat_id) FROM chat_role_view \
                              WHERE role_name = 'admin' and chat_id={chat_id}")
@@ -178,6 +182,7 @@ class Database:
         and returns `None`
         """
         self._validate_connection()
+        self._connection.start_transaction()
         with self._connection.cursor() as cursor:
             cursor.execute(f"INSERT INTO chat (id) \
                              VALUES ({chat_id})")
@@ -197,6 +202,7 @@ class Database:
         and returns `None`
         """
         self._validate_connection()
+        self._connection.start_transaction()
         with self._connection.cursor() as cursor:
             statement = "INSERT INTO chat_role VALUES \
                           (%s, (SELECT id FROM role WHERE name = 'banned'), \
@@ -235,6 +241,7 @@ class Database:
     @handle_mysql_errors
     def update_chat_book(self, chat_id: int, book_id):
         self._validate_connection()
+        self._connection.start_transaction()
         with self._connection.cursor() as cursor:
             cursor.execute(f"UPDATE chat SET book_id = {book_id} \
                             WHERE id = {chat_id}")
