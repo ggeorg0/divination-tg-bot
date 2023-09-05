@@ -1,6 +1,7 @@
 import logging
-from typing import Callable
+from typing import Callable, Optional, Sequence
 from itertools import count
+import datetime
 
 import mysql.connector
 from mysql.connector import MySQLConnection
@@ -10,9 +11,9 @@ from bookparse import Book
 
 # MySQL Errors handling. Used as decorator
 def handle_mysql_errors(func: Callable):
-    def wrapper(*args, **kwargs):
+    def wrapper(db_obj, *args, **kwargs):
         try:
-            return func(*args, **kwargs)
+            return func(db_obj, *args, **kwargs)
         except Error as err:
             if err.errno == errorcode.ER_PARSE_ERROR:
                 logging.error(f'incorrect SQL syntax')
@@ -21,6 +22,8 @@ def handle_mysql_errors(func: Callable):
             else:
                 logging.error(f'unexpected error: {err}')
             logging.error(f'\t in {func.__name__} args={args}, kwargs={kwargs}')
+            if hasattr(db_obj, '_connection') and db_obj._connection.is_connected():
+                db_obj._connection.rollback()
     return wrapper
 
 
@@ -38,7 +41,8 @@ class Database:
 
     def connect(self):
         try:
-            self._connection = mysql.connector.connect(**self._config)
+            self._connection = mysql.connector.connect(**self._config, 
+                                                       autocommit=True)
         except Error as err:
             if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
                 logging.error('invalid login details')
@@ -58,6 +62,7 @@ class Database:
     def insert_book(self, book: Book) -> None:
         """Insert data about the book and pages into database."""
         self._validate_connection()
+        self._connection.start_transaction()
         with self._connection.cursor() as cursor:
             cursor.execute("SELECT MAX(id) FROM book")
             new_book_id = cursor.fetchone()
@@ -75,10 +80,11 @@ class Database:
     def check_for_admin(self, chat_id: int) -> bool:
         self._validate_connection()
         with self._connection.cursor() as cursor:
-            cursor.execute(f"SELECT rights FROM chat WHERE id = {chat_id}")
-            rights = cursor.fetchone()
-            if rights:
-                return rights[0] == 'admin'
+            cursor.execute(f"SELECT role_name FROM chat_role_view \
+                             WHERE chat_id = {chat_id} \
+                             AND role_name = 'admin'")
+            if cursor.fetchone():
+                return True
         return False
     
     @handle_mysql_errors
@@ -86,20 +92,20 @@ class Database:
         """
         Counts bot users
 
-        Returns results in form `(total_count, active_users, admins)`
+        Returns results in form `(total_count, banned_users, admins)`
         """
         self._validate_connection()
         protect_value = lambda val: 0 if val == None else val[0]
         with self._connection.cursor() as cursor:
             cursor.execute("SELECT COUNT(*) FROM chat")
             total = protect_value(cursor.fetchone())
-            cursor.execute("SELECT COUNT(*) FROM chat\
-                            WHERE chat_status = 'active'")
-            active = protect_value(cursor.fetchone())
-            cursor.execute("SELECT COUNT(*) FROM chat\
-                            WHERE rights = 'admin'")
+            cursor.execute("SELECT COUNT(*) FROM chat_role_view \
+                            WHERE role_name = 'banned'")
+            banned = protect_value(cursor.fetchone())
+            cursor.execute("SELECT COUNT(*) FROM chat_role_view \
+                            WHERE role_name = 'admin'")
             admins = protect_value(cursor.fetchone())
-        return (total, active, admins)
+        return (total, banned, admins)
 
     @handle_mysql_errors
     def search_admins(self) -> list[int]:
@@ -108,52 +114,104 @@ class Database:
         """
         self._validate_connection()
         with self._connection.cursor() as cursor:
-            cursor.execute("SELECT id FROM chat\
-                            WHERE rights = 'admin'")
+            cursor.execute("SELECT chat_id FROM chat_role_view \
+                            WHERE role_name = 'admin'")
             results = cursor.fetchall()
-            return [id[0] for id in results]
+        return [row[0] for row in results]
 
-    @handle_mysql_errors    
-    def new_admin(self, chat_id):
+    @handle_mysql_errors
+    def new_admin(self, chat_id, expire_date: Optional[datetime.date] = None):
         """
-        Adds administrator role to given chat_id
+        Adds administrator role to given `chat_id` with given `expire_date`.
+        If the user is already an admin, expire date is updated 
         """
         self._validate_connection()
+        self._connection.start_transaction()
         with self._connection.cursor() as cursor:
-            cursor.execute(f"UPDATE chat SET rights = 'admin'\
-                           WHERE id = {chat_id}")
+            cursor.execute(f"SELECT COUNT(chat_id) FROM chat_role_view \
+                             WHERE role_name = 'admin' and chat_id={chat_id}")
+            count = cursor.fetchone()
+            if count == None or count[0] == 0:
+                statement = """INSERT INTO chat_role VALUES (%s,
+                               (SELECT id FROM role WHERE name = 'admin'),
+                               CURDATE(), %s)"""
+                data = (chat_id, expire_date)
+            else:
+                statement = """UPDATE chat_role SET expire_date = %s
+                               WHERE chat_id = %s AND 
+                               role_id = (SELECT id FROM role WHERE name = 'admin')"""
+                data = (expire_date, chat_id)
+            cursor.execute(statement, data)
         self._connection.commit()
     
     @handle_mysql_errors
-    def chat_status(self, chat_id: int) -> str | None:
+    def check_user_exist(self, chat_id: int) -> bool:
         """
-        Search chat status of `chat_id` in MySQL database.
+        Search user with given `chat_id` in database
 
-        Returns `'active'`, `'inactive'` or `None` if `chat_id` not found
+        Returns `True` if user exists
         """
         self._validate_connection()
         with self._connection.cursor() as cursor:
-            cursor.execute(f"SELECT chat_status FROM chat WHERE id = {chat_id}")
-            status = cursor.fetchone()
-            if status:
-                return status[0]
-        return None     # chat not exists
-    
+            cursor.execute(f"SELECT COUNT(*) FROM chat \
+                             WHERE id = {chat_id}")
+            count = cursor.fetchone()
+            if count != None and count[0] == 1:
+                return True
+        return False
+
     @handle_mysql_errors
-    def set_chat_active(self, chat_id: int) -> None:
+    def get_banned_users(self) -> Sequence[int]:
+        """
+        Search user's chats with role 'banned' in database.
+        """
         self._validate_connection()
         with self._connection.cursor() as cursor:
-            cursor.execute(f"UPDATE chat SET chat_status = 'active' \
-                           WHERE id={chat_id}")
-        self._connection.commit()
+            cursor.execute(f"SELECT chat_id FROM chat_role_view \
+                             WHERE role_name = 'banned'")
+            return [row[0] for row in cursor.fetchall()]
 
     @handle_mysql_errors
     def record_new_chat(self, chat_id: int) -> None:
+        """
+        Insert new chat into database
+
+        When chat with given id already exists a MySQL exception occurs.
+        Exception handled by internal function `database.handle_mysql_errors`
+        (as other `Database` methods)
+        and returns `None`
+        """
         self._validate_connection()
+        self._connection.start_transaction()
         with self._connection.cursor() as cursor:
-            cursor.execute(f"INSERT INTO chat (id, chat_status) \
-                            VALUES ({chat_id}, 'active')")
+            cursor.execute(f"INSERT INTO chat (id) \
+                             VALUES ({chat_id})")
+            cursor.execute(f"INSERT INTO chat_role VALUES ({chat_id}, \
+                             (SELECT id FROM role WHERE name = 'user'), \
+                             CURDATE(), NULL)")
         self._connection.commit()
+    
+    @handle_mysql_errors
+    def ban_users(self, chat_ids: Sequence[int]) -> bool | None:
+        """
+        Add role 'banned' to given `chat_ids`.
+
+        When chat with given id already exists a MySQL exception occurs.
+        Exception handled by internal function `database.handle_mysql_errors` 
+        (as other `Database` methods)
+        and returns `None`
+        """
+        self._validate_connection()
+        self._connection.start_transaction()
+        with self._connection.cursor() as cursor:
+            statement = "INSERT INTO chat_role VALUES \
+                          (%s, (SELECT id FROM role WHERE name = 'banned'), \
+                          CURDATE(), NULL)"
+            # add extra dimesion for separate rows
+            chat_ids = [[chat] for chat in chat_ids]
+            cursor.executemany(statement, chat_ids)
+        self._connection.commit()
+        return True
 
     @handle_mysql_errors
     def search_book(self, rows_count: int, offset: int = 0):
@@ -183,6 +241,7 @@ class Database:
     @handle_mysql_errors
     def update_chat_book(self, chat_id: int, book_id):
         self._validate_connection()
+        self._connection.start_transaction()
         with self._connection.cursor() as cursor:
             cursor.execute(f"UPDATE chat SET book_id = {book_id} \
                             WHERE id = {chat_id}")

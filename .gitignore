@@ -133,3 +133,9 @@ dmypy.json
 downloaded_books/
 .notes
 .vscode
+images/
+fonts/
+*.mwb
+*.mwb.bak
+*.png
+*.jpg

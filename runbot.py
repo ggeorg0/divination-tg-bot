@@ -2,11 +2,13 @@ import logging
 import os
 import io
 import asyncio
+from typing import Callable, Set
 
 from telegram import Update
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardRemove
 from telegram.ext import ApplicationBuilder, ContextTypes, filters
-from telegram.ext import CommandHandler, ConversationHandler, CallbackQueryHandler, MessageHandler, InvalidCallbackData
+from telegram.ext import CommandHandler, ConversationHandler, CallbackQueryHandler, MessageHandler
+from telegram.ext import InvalidCallbackData, Defaults 
 import nltk
 
 from database import Database
@@ -16,11 +18,11 @@ DB_CONFIG = {
     'host': '127.0.0.1',
     'user': os.environ.get('DB_USER'),
     'password': os.environ.get('DB_PASS'),
-    'database': 'book_divination'
+    'database': 'test_bot_db'
 }
 
 START_MSG = """
-Привет! Этот бот позволяет получить предсказание по книге. Выберите одну из доступных книг (/book), напишите страницу и  желаемую строчку. Вы получите отрывок из книги, который и будет вашим предсказанием!
+Привет! Этот бот позволяет получить предсказание по книге. Прямо как в реальной жизни. Выберите одну из доступных книг (/book), напишите страницу и  желаемую строчку. Вы получите отрывок из книги, который и будет вашим предсказанием!
 
 <i>Больше информации и помощь: </i> /help
 """
@@ -44,7 +46,6 @@ INFO_MSG = """Этот бот позволяет получить предска
 Связь @nvrmnb
 """
 ACTIVE_START_MSG = "Предлагаем вам выбрать понравившуюся книгу и получить предсказание! Помощь /help"
-INACTIVE_START_MSG = "Рады видеть вас снова! Помощь /help"
 ERR_MSG = "Случилась ошибка! Не переживайте, мы обязательно все починим. \nerr. code: %d "
 INVALID_BUTTON_MSG = "К сожалению эта кнопка не работает! Попробуйте отправить команду заново."
 ERR_VALUE_MSG = "Невозможно выбрать такую книгу. Попробуйте использовать команду заново"
@@ -71,35 +72,37 @@ MAX_BUTTON_CHARS = 50
 
 db: Database
 img_generator: QuoteImage 
+banned_chats: Set[int]
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
 )
 
+def check_banned(func: Callable) -> Callable:
+    async def wrapper(update: Update,
+                      context: ContextTypes.DEFAULT_TYPE,
+                      *args, **kwargs):
+        if update.effective_chat.id not in banned_chats:
+            return await func(update, context, *args, **kwargs)
+        else:
+            return ConversationHandler.END
+    return wrapper
+
+@check_banned
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     remove_keyboard = ReplyKeyboardRemove()
-    status = db.chat_status(chat_id)
-    if status == 'active':
+    if db.check_user_exist(chat_id):
         await context.bot.send_message(chat_id, text=ACTIVE_START_MSG, reply_markup=remove_keyboard)
-    elif status == 'inactive':
-        db.set_chat_active(chat_id)
-        await context.bot.send_message(chat_id, text=INACTIVE_START_MSG, reply_markup=remove_keyboard)
     else:
         db.record_new_chat(chat_id)
         await context.bot.send_message(chat_id, text=START_MSG, reply_markup=remove_keyboard)
-    
+
+@check_banned
 async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
-    await context.bot.send_message(chat_id, text=INFO_MSG, parse_mode='HTML')
-    
-async def clear(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    Deprecated
-    """
-    reply_markup = ReplyKeyboardRemove()
-    await context.bot.send_message(chat_id=update.effective_chat.id, text='')
+    await context.bot.send_message(chat_id, text=INFO_MSG)
 
 def add_switch_page_buttons(rows: int, desired_rows: int, page_num: int):
     if rows <= desired_rows and page_num == 1:
@@ -132,7 +135,8 @@ def make_books_page(max_rows: int, num: int):
     books = db.search_book(rows_count=max_rows+1, 
                            offset=max_rows*(num-1))
     return build_books_menu(books, desired_rows=max_rows, page_num=num)
-    
+
+@check_banned
 async def show_first_page(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logging.info('in `show_first_page`')
     chat_id = update.effective_chat.id
@@ -140,6 +144,7 @@ async def show_first_page(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id, "Выберите книгу", reply_markup=choice_menu)
     return "browse"
 
+@check_banned
 async def switch_page(update: Update, context: ContextTypes.DEFAULT_TYPE):
     choice = update.callback_query.data
     chat_id = update.effective_chat.id
@@ -166,6 +171,7 @@ def gather_maxpage_message(chat_id: int):
         return SELECT_PAGE_MSG
     return SELECT_PAGE_MSG + MAX_PAGE_PHRASE % max_page
 
+@check_banned
 async def set_book(update: Update, context: ContextTypes.DEFAULT_TYPE):
     choice = update.callback_query.data
     chat_id = update.effective_chat.id
@@ -178,14 +184,13 @@ async def set_book(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         db.update_chat_book(chat_id, book_id)
         book_info = db.book_metadata(book_id)
-        await update.effective_message.edit_text(gather_summary_message(*book_info),
-                                                 parse_mode='HTML')
+        await update.effective_message.edit_text(gather_summary_message(*book_info))
         context.chat_data[chat_id] = {"author": book_info[0], "title": book_info[1]}
         await asyncio.sleep(0.5)
-        await context.bot.send_message(chat_id, text=gather_maxpage_message(chat_id), 
-                                       parse_mode='HTML')
+        await context.bot.send_message(chat_id, text=gather_maxpage_message(chat_id))
     return ConversationHandler.END
 
+@check_banned
 async def select_page(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logging.info('in `select_page`')
     chat_id = update.effective_chat.id
@@ -196,14 +201,14 @@ async def select_page(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ConversationHandler.END 
     if selected_page < 1 or selected_page > max_page:
         message = ERR_SELECT_PAGE_MSG + MAX_PAGE_PHRASE % max_page
-        await context.bot.send_message(chat_id, message, parse_mode='HTML')
+        await context.bot.send_message(chat_id, message)
         return ConversationHandler.END
     page_text = db.page_content(chat_id, selected_page)
     sentences = nltk.tokenize.sent_tokenize(page_text, language='russian')
     context.chat_data[chat_id]["sentences"] = sentences
     context.chat_data[chat_id]["page"] = selected_page
     message = SELECT_SENT_MSG + MAX_SENT_PHRASE % len(sentences)
-    await context.bot.send_message(chat_id, message, parse_mode='HTML')
+    await context.bot.send_message(chat_id, message)
     return "browse"
 
 async def send_quote_image(chat_id: int, 
@@ -220,6 +225,7 @@ async def send_quote_image(chat_id: int,
     await context.bot.send_photo(chat_id, temp_memory)
     temp_memory.close() 
 
+@check_banned
 async def page_line(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logging.info('int `page_line`')
     chat_id = update.effective_chat.id
@@ -233,18 +239,18 @@ async def page_line(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await context.bot.send_message(chat_id, ERR_NO_PAGE)
     except ValueError:
         message = ERR_SELECT_SENT_MSG + MAX_SENT_PHRASE % len(sentences)
-        await context.bot.send_message(chat_id, message, parse_mode='HTML')
+        await context.bot.send_message(chat_id, message)
         return "browse"
     else:
         await context.bot.send_message(chat_id, VERIFY_MSG % (sent_num, page_num))
         await asyncio.sleep(1)
-        await context.bot.send_message(chat_id, DIVINATION_MSG % sentences[sent_num - 1], 
-                                       parse_mode='HTML')
+        await context.bot.send_message(chat_id, DIVINATION_MSG % sentences[sent_num - 1])
         await send_quote_image(chat_id, sentences[sent_num - 1], context)
         context.chat_data[chat_id].pop("sentences")
 
     return ConversationHandler.END
 
+@check_banned
 async def cancel_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logging.info('in `cancel_action`')
     chat_id = update.effective_chat.id
@@ -252,20 +258,24 @@ async def cancel_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.chat_data[chat_id].pop("sentences", None)
     return ConversationHandler.END
 
+@check_banned
 async def nothing_to_cancel(update: Update, сontext: ContextTypes.DEFAULT_TYPE):
     logging.info('in `nothing_to_cancel`')
     chat_id = update.effective_chat.id
     await сontext.bot.send_message(chat_id, NOTHING_CANCEL)
 
+@check_banned
 async def default_error(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logging.info('in `default_error`')
     chat_id = update.effective_chat.id
     await context.bot.send_message(chat_id, INACCESSIBLE_COMMAND)
     return "browse"
 
+@check_banned
 async def command_not_found(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logging.info('in `command_not_found`')
     chat_id = update.effective_chat.id
+    
     await context.bot.send_message(chat_id, UNKNOWN_COMMAND)
 
 async def handle_invalid_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -274,8 +284,14 @@ async def handle_invalid_button(update: Update, context: ContextTypes.DEFAULT_TY
     await update.callback_query.answer()
     await update.effective_message.edit_text(INVALID_BUTTON_MSG)
 
+async def update_bans(_: ContextTypes.DEFAULT_TYPE):
+    banned_chats.update(db.get_banned_users())
+
 def run_bot():
-    application = ApplicationBuilder().token(os.environ.get('TOKEN')).build()
+    defaults = Defaults(parse_mode='HTML')
+    application = ApplicationBuilder().defaults(defaults)             \
+                                      .token(os.environ.get('TOKEN')) \
+                                      .build()
 
     start_handler = CommandHandler('start', start)
 
@@ -313,9 +329,13 @@ def run_bot():
 
     application.add_handler(CallbackQueryHandler(handle_invalid_button))
 
+    # update banned users every 5 minutes
+    application.job_queue.run_repeating(update_bans, interval=60*5)
+
     application.run_polling()
 
 if __name__ == '__main__':
     db = Database(DB_CONFIG)
     img_generator = QuoteImage()
+    banned_chats = set(db.get_banned_users())
     run_bot()
