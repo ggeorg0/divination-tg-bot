@@ -19,6 +19,7 @@ HELP_MSG = """<b>Доступные действия:</b>
 - /stats
 - /admins
 - /addadmin
+- /ban
 - /reconnectdb
 - /myid
 - /clearcache
@@ -146,9 +147,6 @@ async def new_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id, NEW_ADMIN_INSTRUCTIONS_MSG)
     return ADD_STATE # ConversationHandler state
 
-# I am going to add separate table to databse with \
-# date of granting rights in next versions, so I'll need to change this method.
-# And there are no remove_admin method because new admin can remove old one
 @admin_check
 async def record_new_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
@@ -199,6 +197,9 @@ async def ban_chats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await context.bot.send_message(chat_id, SUCCESS_BAN_MSG)
     except ValueError:
         await context.bot.send_message(chat_id, INVALID_BAN_ID_MSG)
+
+# there are no remove_admin method because new admin can remove old one 
+# (at least for now)
 
 def main():
     defaults = Defaults(parse_mode='HTML')
