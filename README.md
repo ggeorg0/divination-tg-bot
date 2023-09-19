@@ -1,6 +1,9 @@
 ## Встречайте! Встречайте! Встречайте! 
 ### Гадание по книге через телеграм бот!
 ---
+
+You can find bot here: [Bibliomancer](https://t.me/bookdivbot)
+
 ### Installation:
 
 1. clone repo to your local machine:\
@@ -26,3 +29,4 @@ linux: `python3 -m venv ./.venv && source ./.venv/bin/activate`
 8. Run your admin bot with\
 `python ./adminbot.py` (windows)\
 `python3 ./adminbot.py` (linux)
+
