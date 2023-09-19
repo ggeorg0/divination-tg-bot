@@ -1,5 +1,4 @@
 import logging
-import os
 import io
 import asyncio
 from typing import Callable, Set
@@ -13,13 +12,8 @@ import nltk
 
 from database import Database
 from imgen import QuoteImage
+from config import BOT_TOKEN, DB_CONFIG 
 
-DB_CONFIG = {
-    'host': '127.0.0.1',
-    'user': os.environ.get('DB_USER'),
-    'password': os.environ.get('DB_PASS'),
-    'database': 'test_bot_db'
-}
 
 START_MSG = """
 Привет! Этот бот позволяет получить предсказание по книге. Прямо как в реальной жизни. Выберите одну из доступных книг (/book), напишите страницу и  желаемую строчку. Вы получите отрывок из книги, который и будет вашим предсказанием!
@@ -280,7 +274,7 @@ async def update_bans(_: ContextTypes.DEFAULT_TYPE):
 def run_bot():
     defaults = Defaults(parse_mode='HTML')
     application = ApplicationBuilder().defaults(defaults)             \
-                                      .token(os.environ.get('TOKEN')) \
+                                      .token(BOT_TOKEN) \
                                       .build()
 
     start_handler = CommandHandler('start', start)
