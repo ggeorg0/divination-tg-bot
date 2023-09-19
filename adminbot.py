@@ -9,7 +9,7 @@ from telegram.ext import CommandHandler, MessageHandler, ConversationHandler
 
 from bookparse import BookReader
 from database import Database
-from config import DOWNLOAD_DIR, DB_CONFIG
+from config import DOWNLOAD_DIR, DB_CONFIG, ADMIN_BOT_TOKEN
 
 
 NO_RIGHTS_MSG = "У вас нет прав на использование этого бота."
@@ -197,8 +197,8 @@ async def ban_chats(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def main():
     defaults = Defaults(parse_mode='HTML')
-    applaction = ApplicationBuilder().defaults(defaults)             \
-                                     .token(os.environ.get('TOKEN')) \
+    applaction = ApplicationBuilder().defaults(defaults)     \
+                                     .token(ADMIN_BOT_TOKEN) \
                                      .build()
     
     start_handler = CommandHandler('start', start)
