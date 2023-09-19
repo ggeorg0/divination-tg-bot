@@ -4,9 +4,6 @@ from typing import List, Optional
 LINE_SYMBOLS = 55
 PAGE_SYMBOLS = 50
 
-INSERT_PAGES_QUERY = """INSERT INTO page (book_id, num, content)
-VALUES (%s, %s, %s)
-"""
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -83,7 +80,7 @@ class BookReader:
         with open(file_path, "r", encoding='utf-8') as file:
             raw_text = file.readlines()
         book = Book(author=raw_text[0].strip(),
-                          title=raw_text[1].strip(),
-                          info=raw_text[3].strip(),
-                          text="".join(raw_text[4:]))
+                    title=raw_text[1].strip(),
+                    info=raw_text[3].strip(),
+                    text="".join(raw_text[4:]))
         return book
