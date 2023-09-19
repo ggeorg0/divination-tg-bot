@@ -4,18 +4,19 @@ import sys
 WARN_MSG = """built-in dict class has the ability to remember insertion order in Python 3.7 or above, 
 your Python version is %s.%s.%s. It means the table creation order may be incorrect."""
 
-CREATE_STATEMENTS = {}
-INSERT_STATEMENTS = {}
+TABLES_CREATION = {}
+ROLE_INSERTIONS = {}
+ADMIN_INSERTION = {}
 
-CREATE_STATEMENTS['schema'] = """
+TABLES_CREATION['schema'] = """
 CREATE SCHEMA `test_bot_db` DEFAULT CHARACTER SET utf8 ;
 """
 
-CREATE_STATEMENTS['use schema'] = """
+TABLES_CREATION['use schema'] = """
 USE `test_bot_db`;
 """
 
-CREATE_STATEMENTS['table book'] = """
+TABLES_CREATION['table book'] = """
 CREATE TABLE IF NOT EXISTS `book` (
     `id` SMALLINT UNSIGNED NOT NULL,
     `title` VARCHAR(1024) NULL,
@@ -25,7 +26,7 @@ CREATE TABLE IF NOT EXISTS `book` (
 ) ENGINE = InnoDB;
 """
 
-CREATE_STATEMENTS['table chat'] = """
+TABLES_CREATION['table chat'] = """
 CREATE TABLE IF NOT EXISTS `chat` (
     `id` BIGINT UNSIGNED NOT NULL,
     `book_id` SMALLINT UNSIGNED NULL,
@@ -38,7 +39,7 @@ CREATE TABLE IF NOT EXISTS `chat` (
 ) ENGINE = InnoDB;
 """
 
-CREATE_STATEMENTS['table page'] = """
+TABLES_CREATION['table page'] = """
 CREATE TABLE IF NOT EXISTS `page` (
     `book_id` SMALLINT UNSIGNED NOT NULL,
     `num` MEDIUMINT NOT NULL,
@@ -51,7 +52,7 @@ CREATE TABLE IF NOT EXISTS `page` (
 """
 
 
-CREATE_STATEMENTS['table role'] = """
+TABLES_CREATION['table role'] = """
 CREATE TABLE IF NOT EXISTS `role` (
     `id` INT UNSIGNED NOT NULL,
     `name` VARCHAR(255) NOT NULL,
@@ -62,7 +63,7 @@ CREATE TABLE IF NOT EXISTS `role` (
 """
 
 
-CREATE_STATEMENTS['table chat_role'] = """
+TABLES_CREATION['table chat_role'] = """
 CREATE TABLE IF NOT EXISTS `chat_role` (
     `chat_id` BIGINT UNSIGNED NOT NULL,
     `role_id` INT UNSIGNED NOT NULL,
@@ -79,7 +80,7 @@ CREATE TABLE IF NOT EXISTS `chat_role` (
 ) ENGINE = InnoDB;
 """
 
-CREATE_STATEMENTS['trigger chat_role_BEFORE_INSERT'] = """
+TABLES_CREATION['trigger chat_role_BEFORE_INSERT'] = """
 CREATE TRIGGER `chat_role_BEFORE_INSERT` BEFORE INSERT ON `chat_role`
 FOR EACH ROW
 BEGIN
@@ -89,7 +90,7 @@ BEGIN
 END
 """
 
-CREATE_STATEMENTS['view chat_role_view'] = """
+TABLES_CREATION['view chat_role_view'] = """
 CREATE OR REPLACE VIEW chat_role_view AS
     SELECT chat_id, role.name as role_name, expire_date
 		FROM chat_role INNER JOIN role 
@@ -97,7 +98,7 @@ CREATE OR REPLACE VIEW chat_role_view AS
 		WHERE chat_role.grant_date <= CURDATE();
 """
 
-CREATE_STATEMENTS['event role_expiration'] = """
+TABLES_CREATION['event role_expiration'] = """
 CREATE EVENT role_expiration
     ON SCHEDULE
         EVERY 1 DAY
@@ -108,18 +109,30 @@ CREATE EVENT role_expiration
 """
 
 
-INSERT_STATEMENTS['use schema'] = """
+ROLE_INSERTIONS['use schema'] = """
 USE `test_bot_db`;
 """
-INSERT_STATEMENTS['user role'] = """
+ROLE_INSERTIONS['user role'] = """
 INSERT INTO role (id, name, info) VALUES (1, 'user', 'Ordinary bot user. Default role.');
 """
-INSERT_STATEMENTS['admin role'] = """
+ROLE_INSERTIONS['admin role'] = """
 INSERT INTO role (id, name, info) VALUES (2, 'admin', 'User has ascess to the bot-admin');
 """
-INSERT_STATEMENTS['banned role'] = """
+ROLE_INSERTIONS['banned role'] = """
 INSERT INTO role (id, name, info) VALUES (3, 'banned', 'User banned from using the bot');
 """
+
+
+ADMIN_INSERTION['record chat with given id'] = """
+INSERT INTO chat (id) VALUES ({})
+"""
+ADMIN_INSERTION['add role user'] = """
+INSERT INTO chat_role VALUES ({}, (SELECT id FROM role WHERE name = 'user'), CURDATE(), NULL);
+"""
+ADMIN_INSERTION['add role admin'] = """
+INSERT INTO chat_role VALUES ({}, (SELECT id FROM role WHERE name = 'admin'), CURDATE(), NULL);
+"""
+
 
 ver = sys.version_info
 if ver[0] < 3 or ver[1] < 7:

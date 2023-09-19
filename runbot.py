@@ -1,5 +1,4 @@
 import logging
-import os
 import io
 import asyncio
 from typing import Callable, Set
@@ -13,13 +12,8 @@ import nltk
 
 from database import Database
 from imgen import QuoteImage
+from config import BOT_TOKEN, DB_CONFIG 
 
-DB_CONFIG = {
-    'host': '127.0.0.1',
-    'user': os.environ.get('DB_USER'),
-    'password': os.environ.get('DB_PASS'),
-    'database': 'test_bot_db'
-}
 
 START_MSG = """
 Привет! Этот бот позволяет получить предсказание по книге. Прямо как в реальной жизни. Выберите одну из доступных книг (/book), напишите страницу и  желаемую строчку. Вы получите отрывок из книги, который и будет вашим предсказанием!
@@ -55,6 +49,7 @@ SELECT_SENT_MSG = "Отлично! Теперь напишите номер пр
 MAX_SENT_PHRASE = "\nМожно выбрать предложение с <b>1</b> по <b>%s</b>."
 ERR_SELECT_PAGE_MSG = "К сожалению, не получится выбраться страницу с таким номером."
 ERR_SELECT_SENT_MSG = "Такого предложения нет на странице, которую вы выбрали."
+SUMMARY_BOOK_MESSAGE = "Вы выбрали: <b>{0}</b>\nАвторы: {1}\nОписание: {2}\nВыбрать другую книгу /book"
 VERIFY_MSG = "Вы выбрали предложение %s на странице %s."
 DIVINATION_MSG = "Ваше предсказание: \n<b>%s</b>"
 ERR_NO_PAGE = "Вы не можете выбрать предложение пока не выберите страницу!"
@@ -121,7 +116,8 @@ def add_switch_page_buttons(rows: int, desired_rows: int, page_num: int):
 
 def build_books_menu(book_rows: list, desired_rows: int, page_num: int):
     buttons = []
-    for book in book_rows[:desired_rows]:         # last rows used as indicator of additional data for page switch buttons
+    for book in book_rows[:desired_rows]:         
+        # last rows used as indicator of additional data for page switch buttons
         name = book[1] + ". " + book[2]
         if len(name) > MAX_BUTTON_CHARS:
             name = name[:MAX_BUTTON_CHARS] + "..." 
@@ -138,7 +134,6 @@ def make_books_page(max_rows: int, num: int):
 
 @check_banned
 async def show_first_page(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    logging.info('in `show_first_page`')
     chat_id = update.effective_chat.id
     choice_menu = make_books_page(LIST_H, num=1)
     await context.bot.send_message(chat_id, "Выберите книгу", reply_markup=choice_menu)
@@ -147,8 +142,6 @@ async def show_first_page(update: Update, context: ContextTypes.DEFAULT_TYPE):
 @check_banned
 async def switch_page(update: Update, context: ContextTypes.DEFAULT_TYPE):
     choice = update.callback_query.data
-    chat_id = update.effective_chat.id
-    logging.info(f'int `switch_page`: {choice}')
     if 'page_none' == update.callback_query.data:
         await update.callback_query.answer()
         return "browse"
@@ -159,9 +152,9 @@ async def switch_page(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return "browse"
 
 def gather_summary_message(title: str, author: str, info: str):
-    message = "Вы выбрали: <b>{0}</b>\nАвторы: {1}\nОписание: {2}\nВыбрать другую книгу /book"
+    message = SUMMARY_BOOK_MESSAGE
     if info != 'NULL':
-        message =  message.format(title, author, info)
+        message = message.format(title, author, info)
     message = message.format(title, author, 'нет описания')
     return message
 
@@ -175,7 +168,6 @@ def gather_maxpage_message(chat_id: int):
 async def set_book(update: Update, context: ContextTypes.DEFAULT_TYPE):
     choice = update.callback_query.data
     chat_id = update.effective_chat.id
-    logging.info(f'int `set_book`: {choice}')
     await update.callback_query.answer()
     try:
         book_id = int(choice[5:])
@@ -192,7 +184,6 @@ async def set_book(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 @check_banned
 async def select_page(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    logging.info('in `select_page`')
     chat_id = update.effective_chat.id
     selected_page = int(update.message.text)
     max_page = db.search_max_page(chat_id)
@@ -227,7 +218,6 @@ async def send_quote_image(chat_id: int,
 
 @check_banned
 async def page_line(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    logging.info('int `page_line`')
     chat_id = update.effective_chat.id
     try:
         page_num = context.chat_data[chat_id]["page"]
@@ -252,7 +242,6 @@ async def page_line(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 @check_banned
 async def cancel_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    logging.info('in `cancel_action`')
     chat_id = update.effective_chat.id
     await context.bot.send_message(chat_id, CANCEL_ACTION_MSG)
     context.chat_data[chat_id].pop("sentences", None)
@@ -260,27 +249,22 @@ async def cancel_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 @check_banned
 async def nothing_to_cancel(update: Update, сontext: ContextTypes.DEFAULT_TYPE):
-    logging.info('in `nothing_to_cancel`')
     chat_id = update.effective_chat.id
     await сontext.bot.send_message(chat_id, NOTHING_CANCEL)
 
 @check_banned
 async def default_error(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    logging.info('in `default_error`')
     chat_id = update.effective_chat.id
     await context.bot.send_message(chat_id, INACCESSIBLE_COMMAND)
     return "browse"
 
 @check_banned
 async def command_not_found(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    logging.info('in `command_not_found`')
     chat_id = update.effective_chat.id
-    
     await context.bot.send_message(chat_id, UNKNOWN_COMMAND)
 
 async def handle_invalid_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Информирует пользователя о том, что кнопка больше недоступна"""
-    logging.info('in `handle_invalid_button`')
+    """Informs that button is not available now"""
     await update.callback_query.answer()
     await update.effective_message.edit_text(INVALID_BUTTON_MSG)
 
@@ -290,7 +274,7 @@ async def update_bans(_: ContextTypes.DEFAULT_TYPE):
 def run_bot():
     defaults = Defaults(parse_mode='HTML')
     application = ApplicationBuilder().defaults(defaults)             \
-                                      .token(os.environ.get('TOKEN')) \
+                                      .token(BOT_TOKEN) \
                                       .build()
 
     start_handler = CommandHandler('start', start)

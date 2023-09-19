@@ -9,8 +9,8 @@ from telegram.ext import CommandHandler, MessageHandler, ConversationHandler
 
 from bookparse import BookReader
 from database import Database
+from config import DOWNLOAD_DIR, DB_CONFIG
 
-DOWNLOAD_DIR = "downloaded_books"
 
 NO_RIGHTS_MSG = "У вас нет прав на использование этого бота."
 GREET_MSG = "Добро пожаловать в бот-админку!"
@@ -19,6 +19,7 @@ HELP_MSG = """<b>Доступные действия:</b>
 - /stats
 - /admins
 - /addadmin
+- /ban
 - /reconnectdb
 - /myid
 - /clearcache
@@ -58,12 +59,6 @@ UNICODE_ERR_MSG = "Ошибка кодировки файла! Использу�
 DB_RECONNECT_MSG = "Соединение с базой данных переподключено."
 ADD_STATE = 2
 
-DB_CONFIG = {
-    'host': '127.0.0.1',
-    'user': os.environ.get('DB_USER'),
-    'password': os.environ.get('DB_PASS'),
-    'database': 'test_bot_db'
-}
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -146,9 +141,6 @@ async def new_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id, NEW_ADMIN_INSTRUCTIONS_MSG)
     return ADD_STATE # ConversationHandler state
 
-# I am going to add separate table to databse with \
-# date of granting rights in next versions, so I'll need to change this method.
-# And there are no remove_admin method because new admin can remove old one
 @admin_check
 async def record_new_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
@@ -199,6 +191,9 @@ async def ban_chats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await context.bot.send_message(chat_id, SUCCESS_BAN_MSG)
     except ValueError:
         await context.bot.send_message(chat_id, INVALID_BAN_ID_MSG)
+
+# there are no remove_admin method because new admin can remove old one 
+# (at least for now)
 
 def main():
     defaults = Defaults(parse_mode='HTML')
