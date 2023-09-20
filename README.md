@@ -1,32 +1,51 @@
-## Встречайте! Встречайте! Встречайте! 
-### Гадание по книге через телеграм бот!
----
+### Встречайте! Встречайте! Встречайте! 
+# Гадание по книге через телеграм бот [Bibliomancer](https://t.me/bookdivbot)!
 
-You can find bot here: [Bibliomancer](https://t.me/bookdivbot)
+## Описание
 
-### Installation:
+Этот телеграм бот позволяет получить предсказание по книге. Прямо как в реальной жизни. Выберите одну из доступных книг (/book), напишите страницу и желаемую строчку. Вы получите цитату и её сгенерированное изображение, которые и будут вашим предсказанием. Ссылка на бота находится в заголовке.
 
-1. clone repo to your local machine:\
+В этом репозитории также содержится код [админ-бота](./adminbot.py), через которого можно загружать новые книги, смотреть количество пользователей, добавлять новых админов и банить пользователей в случае необходимости.
+
+Для взаимодействия с API телеграма используется [Python-Telegram-Bot](https://github.com/python-telegram-bot/python-telegram-bot), в качестве СУБД я использую MySQL, для генерации картинок — Pillow.
+
+### Описание базы данных
+
+В файле [`database.sql`](./database.sql) содержатся SQL-запросы создания базы данных: 
+- Таблица `book` хранит метаданные о книгах: название, авторы и т.д. 
+- Страницы книг хранятся в `page`.
+- Таблица `chat` содрежит id всех чатов, которые взаимодействуют с ботом, а также id книги из `book`, которую выбрал пользователь с данным id.
+
+С помощью таблиц: `role`, `chat_role` и представления `chat_role_view` реализована __система ролей__.\
+На данный момент используются роли _user_, _admin_ и _banned_, которые отвечают за обычного пользователя, администратора и забанненого пользователя соответсвенно. Роль _admin_ дает возможность пользоваться админ-ботом. Один и тот же пользователь может иметь несколько ролей (например _user_ и _admin_).
+
+Каждая выданная роль может иметь временные рамки в теченнии которых она действует (`grant_date` и `expire_date`).\
+Событие `role_expiration` ежедневно в 3 часа ночи проверяет срок дейтсвия роли, и, в случае истечения, забирает её у пользователя.
+
+### Установка:
+
+1. Склонируйте репозиторий на ваш компьютер:\
 `git clone git@github.com:ggeorg0/divination-tg-bot.git`
 
-2. Dive into repository folder :\
+2. Перейдите в папку репозитория:\
 `cd divitaion-tg-bot`
 
-3. In order to not accidentally change version of your python libraries **use virtual environments**\
-windows: `python -m venv ./.venv && ./.venv/Scripts/activate`\
-linux: `python3 -m venv ./.venv && source ./.venv/bin/activate`
+3. Чтобы случайно не изменить версию ваших библиотек Python, используйте [виртуальные окружения](https://docs.python.org/3/library/venv.html)\
+Windows: `python -m venv ./.venv && ./.venv/Scripts/activate`\
+Linux: `python3 -m venv ./.venv && source ./.venv/bin/activate`
 
-4. Now you need to [install MySQL](https://dev.mysql.com/doc/refman/8.0/en/installing.html) database (ver. >= 8.0) on your local machine. If you are familiar with docker, you can use it.
+4. Теперь вам нужно установить систему управления базами данных [MySQL](https://dev.mysql.com/doc/refman/8.0/en/installing.html) (версия >= 8.0) на вашем компьютере. Если вы знакомы с Docker, вы можете использовать его.
 
-5. Get two tokens from [BotFather](https://t.me/botfather): one for ordinary bot and one for admin bot.
+5. Получите токены доступа к ботам от [BotFather](https://t.me/botfather) — один для обычного бота и один для админ-бота
 
-6. Update file `config.py` with your MySQL credentials and bot tokens you get from BotFater.
+6. Обновите файл [`config.py`](./config.py) с вашими учетными данными для MySQL и токенами ботов, которые вы получили от BotFather. Если вы не хотите хранить учетные данные в файле, используйте переменные окружения. 
 
-7. Run your ordinary bot with\
-`python ./runbot.py` (windows)\
-`python3 ./runbot.py` (linux)
+7. Запустите обычного бота с помощью команды:
+`python ./runbot.py` (Windows)
+`python3 ./runbot.py` (Linux)
 
-8. Run your admin bot with\
-`python ./adminbot.py` (windows)\
-`python3 ./adminbot.py` (linux)
+8. Запустите админ-бота с помощью команды:
+`python ./adminbot.py` (Windows)
+`python3 ./adminbot.py` (Linux)
+
 
