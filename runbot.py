@@ -105,12 +105,12 @@ def add_switch_page_buttons(rows: int, desired_rows: int, page_num: int):
     if page_num == 1:
         prev_button = InlineKeyboardButton(" ", callback_data="page_none")
     else:
-        prev_button = InlineKeyboardButton(f"Назад ⬅️ ({page_num - 1})",
+        prev_button = InlineKeyboardButton(f"Назад | {page_num - 1}",
                                            callback_data=f"page_{page_num - 1}")
     if rows <= desired_rows:
         next_button = InlineKeyboardButton(" ", callback_data="page_none")
     else:
-        next_button = InlineKeyboardButton(f"Далее ➡️ ({page_num + 1})",
+        next_button = InlineKeyboardButton(f"Далее | {page_num + 1}",
                                            callback_data=f"page_{page_num + 1}")
     return [[prev_button, next_button]]
 
@@ -244,7 +244,8 @@ async def page_line(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def cancel_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     await context.bot.send_message(chat_id, CANCEL_ACTION_MSG)
-    context.chat_data[chat_id].pop("sentences", None)
+    if chat_id in context.chat_data:
+        context.chat_data[chat_id].pop("sentences", None)
     return ConversationHandler.END
 
 @check_banned
@@ -273,8 +274,8 @@ async def update_bans(_: ContextTypes.DEFAULT_TYPE):
 
 def run_bot():
     defaults = Defaults(parse_mode='HTML')
-    application = ApplicationBuilder().defaults(defaults)             \
-                                      .token(BOT_TOKEN) \
+    application = ApplicationBuilder().defaults(defaults)\
+                                      .token(BOT_TOKEN)  \
                                       .build()
 
     start_handler = CommandHandler('start', start)
