@@ -105,12 +105,12 @@ def add_switch_page_buttons(rows: int, desired_rows: int, page_num: int):
     if page_num == 1:
         prev_button = InlineKeyboardButton(" ", callback_data="page_none")
     else:
-        prev_button = InlineKeyboardButton(f"Назад ⬅️ ({page_num - 1})",
+        prev_button = InlineKeyboardButton(f"Назад | {page_num - 1}",
                                            callback_data=f"page_{page_num - 1}")
     if rows <= desired_rows:
         next_button = InlineKeyboardButton(" ", callback_data="page_none")
     else:
-        next_button = InlineKeyboardButton(f"Далее ➡️ ({page_num + 1})",
+        next_button = InlineKeyboardButton(f"Далее | {page_num + 1}",
                                            callback_data=f"page_{page_num + 1}")
     return [[prev_button, next_button]]
 
