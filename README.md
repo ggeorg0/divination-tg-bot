@@ -55,7 +55,7 @@
     | linux   | `pip3 install -r ./requirements.txt` |
     | windows | `pip install  -r ./requirements.txt` |
 
-5. Наверняка у меня нет прав на распространение чужих шрифтов, поэтому вам придется самостоятельно найти шрифты Ubuntu Bold, Georgia и поместить их файлы (`Ubuntu-Bold.ttf`, `georgia.ttf`) в директорию `fonts/`.
+5. Скорее всего меня нет прав на распространение чужих шрифтов, поэтому вам придется самостоятельно найти шрифты _Ubuntu Bold_ и _Georgia Italic_, а затем поместить их файлы (`Ubuntu-Bold.ttf`, `georgiai.ttf`) в директорию `fonts/`.
 
 6. Теперь вам нужно установить систему управления базами данных [MySQL](https://dev.mysql.com/doc/refman/8.0/en/installing.html) (версия >= 8.0) на вашем компьютере. Если вы знакомы с Docker, вы можете использовать его.
 
