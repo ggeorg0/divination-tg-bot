@@ -40,7 +40,6 @@ INFO_MSG = """Этот бот позволяет получить предска
 Связь @nvrmnb
 """
 ACTIVE_START_MSG = "Предлагаем вам выбрать понравившуюся книгу и получить предсказание! Помощь /help"
-ERR_MSG = "Случилась ошибка! Не переживайте, мы обязательно все починим. \nerr. code: %d "
 INVALID_BUTTON_MSG = "К сожалению эта кнопка не работает! Попробуйте отправить команду заново."
 ERR_VALUE_MSG = "Невозможно выбрать такую книгу. Попробуйте использовать команду заново"
 SELECT_PAGE_MSG = "Напишите номер страницы, на которой будет ваше предсказание."
@@ -58,6 +57,7 @@ INACCESSIBLE_COMMAND = """Сейчас нельзя использовать т�
 Чтобы отменить его, используйте /cancel
 """
 BOOK_IS_NULL = "Для начала выбреите книгу с помощью команды /book"
+SELECT_BOOK_AGAIN_MSG = "Ой! Мы случайно задели полку и рассыпали все книги! Пожалуйста, выберите книгу заново /book"
 NOTHING_CANCEL = "Сейчас нечего отменять."
 UNKNOWN_COMMAND = "Неизвестная комманда. Помощь /help"
 
@@ -185,6 +185,9 @@ async def set_book(update: Update, context: ContextTypes.DEFAULT_TYPE):
 @check_banned
 async def select_page(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
+    if chat_id not in context.chat_data:
+        await context.bot.send_message(chat_id, SELECT_BOOK_AGAIN_MSG)
+        return ConversationHandler.END
     selected_page = int(update.message.text)
     max_page = db.search_max_page(chat_id)
     if max_page == None:
@@ -196,8 +199,7 @@ async def select_page(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ConversationHandler.END
     page_text = db.page_content(chat_id, selected_page)
     sentences = nltk.tokenize.sent_tokenize(page_text, language='russian')
-    context.chat_data[chat_id]["sentences"] = sentences
-    context.chat_data[chat_id]["page"] = selected_page
+    context.chat_data[chat_id].update({"sentences": sentences, "page": selected_page})
     message = SELECT_SENT_MSG + MAX_SENT_PHRASE % len(sentences)
     await context.bot.send_message(chat_id, message)
     return "browse"
