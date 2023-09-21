@@ -30,8 +30,7 @@
 
 Пример сгенерированной цитаты:
 
-<img src="https://github.com/ggeorg0/divination-tg-bot/assets/89857543/c784abdf-d554-41e6-b7b3-0a29ca0bffe3)" alt="sreenshot" width="720"/>
-
+<img src="https://github.com/ggeorg0/divination-tg-bot/assets/89857543/7e57b9da-9b32-424b-8573-1a5b25000cb0" alt="sreenshot" width="720"/>
 
 
 ## Установка:
