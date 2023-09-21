@@ -28,7 +28,7 @@ class QuoteImage:
                  logo_path: str="images/logo_qr.png",
                  author_font_path: str="fonts/Ubuntu-Bold.ttf",
                  title_font_path: str="fonts/Ubuntu-Bold.ttf",
-                 quote_font_path: str="georgiai.ttf",
+                 quote_font_path: str="fonts/georgiai.ttf",
                  border_ratio: int=22):
         self._logo = Image.open(logo_path)
         self._author_font = ImageFont.truetype(author_font_path, 42)
