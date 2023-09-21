@@ -48,6 +48,13 @@
     | linux   | `python3 -m venv ./.venv && source ./.venv/bin/activate` |
     | windows | `python -m venv ./.venv && ./.venv/Scripts/activate`     |
 
+3. Установите зависимости из файла [`requirements.txt`](./requirements.txt)
+   
+    | os      | command                              |
+    |---------|--------------------------------------|
+    | linux   | `pip3 install -r ./requirements.txt` |
+    | windows | `pip install  -r ./requirements.txt` |
+
 4. Теперь вам нужно установить систему управления базами данных [MySQL](https://dev.mysql.com/doc/refman/8.0/en/installing.html) (версия >= 8.0) на вашем компьютере. Если вы знакомы с Docker, вы можете использовать его.
 
 5. Получите токены доступа к ботам от [BotFather](https://t.me/botfather) — один для обычного бота и один для админ-бота
