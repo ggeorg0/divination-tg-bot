@@ -1,6 +1,8 @@
 import logging
 import sys
 
+from config import DB_CONFIG
+
 WARN_MSG = """built-in dict class has the ability to remember insertion order in Python 3.7 or above, 
 your Python version is %s.%s.%s. It means the table creation order may be incorrect."""
 
@@ -8,12 +10,12 @@ TABLES_CREATION = {}
 ROLE_INSERTIONS = {}
 ADMIN_INSERTION = {}
 
-TABLES_CREATION['schema'] = """
-CREATE SCHEMA `test_bot_db` DEFAULT CHARACTER SET utf8 ;
+TABLES_CREATION['schema'] = f"""
+CREATE SCHEMA `{DB_CONFIG["database"]}` DEFAULT CHARACTER SET utf8 ;
 """
 
-TABLES_CREATION['use schema'] = """
-USE `test_bot_db`;
+TABLES_CREATION['use schema'] = f"""
+USE `{DB_CONFIG["database"]}`;
 """
 
 TABLES_CREATION['table book'] = """
@@ -109,8 +111,8 @@ CREATE EVENT role_expiration
 """
 
 
-ROLE_INSERTIONS['use schema'] = """
-USE `test_bot_db`;
+ROLE_INSERTIONS['use schema'] = f"""
+USE `{DB_CONFIG["database"]}`;
 """
 ROLE_INSERTIONS['user role'] = """
 INSERT INTO role (id, name, info) VALUES (1, 'user', 'Ordinary bot user. Default role.');
