@@ -25,7 +25,7 @@ class QuoteImage:
 
     def __init__(self, 
                  color_theme: colorT=(143, 143, 143),
-                 logo_path: str="images/logo2-5.png",
+                 logo_path: str="images/logo_qr.png",
                  author_font_path: str="fonts/Ubuntu-Bold.ttf",
                  title_font_path: str="fonts/Ubuntu-Bold.ttf",
                  quote_font_path: str="georgiai.ttf",
