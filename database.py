@@ -1,6 +1,7 @@
 import logging
 from typing import Callable, Optional, Sequence
 from itertools import count
+from functools import wraps
 import datetime
 
 import mysql.connector
@@ -11,6 +12,7 @@ from bookparse import Book
 
 # MySQL Errors handling. Used as decorator
 def handle_mysql_errors(func: Callable):
+    @wraps(func)
     def wrapper(db_obj, *args, **kwargs):
         try:
             return func(db_obj, *args, **kwargs)

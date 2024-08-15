@@ -1,6 +1,7 @@
 import os
 import asyncio
 from pathlib import Path
+from functools import wraps
 import logging
 
 from telegram import Update, Message
@@ -68,6 +69,7 @@ logging.basicConfig(
 db: Database
 
 def admin_check(action):
+    @wraps(action)
     async def wrapper(update: Update, 
                       context: ContextTypes.DEFAULT_TYPE, 
                       *args, **kwargs):

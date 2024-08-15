@@ -1,6 +1,7 @@
 import logging
 import io
 import asyncio
+from functools import wraps 
 from typing import Callable, Set
 
 from telegram import Update
@@ -75,6 +76,7 @@ logging.basicConfig(
 )
 
 def check_banned(func: Callable) -> Callable:
+    @wraps(func)
     async def wrapper(update: Update,
                       context: ContextTypes.DEFAULT_TYPE,
                       *args, **kwargs):
