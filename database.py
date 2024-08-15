@@ -15,6 +15,7 @@ def handle_mysql_errors(func: Callable):
     @wraps(func)
     def wrapper(db_obj, *args, **kwargs):
         try:
+            db_obj._validate_connection()
             return func(db_obj, *args, **kwargs)
         except Error as err:
             if err.errno == errorcode.ER_PARSE_ERROR:
@@ -63,7 +64,6 @@ class Database:
     @handle_mysql_errors
     def insert_book(self, book: Book) -> None:
         """Insert data about the book and pages into database."""
-        self._validate_connection()
         self._connection.start_transaction()
         with self._connection.cursor() as cursor:
             cursor.execute("SELECT MAX(id) FROM book")
@@ -80,7 +80,6 @@ class Database:
 
     @handle_mysql_errors
     def check_for_admin(self, chat_id: int) -> bool:
-        self._validate_connection()
         with self._connection.cursor() as cursor:
             cursor.execute(f"SELECT role_name FROM chat_role_view \
                              WHERE chat_id = {chat_id} \
@@ -96,7 +95,6 @@ class Database:
 
         Returns results in form `(total_count, banned_users, admins)`
         """
-        self._validate_connection()
         protect_value = lambda val: 0 if val == None else val[0]
         with self._connection.cursor() as cursor:
             cursor.execute("SELECT COUNT(*) FROM chat")
@@ -114,7 +112,6 @@ class Database:
         """
         Returns list of admins ids
         """
-        self._validate_connection()
         with self._connection.cursor() as cursor:
             cursor.execute("SELECT chat_id FROM chat_role_view \
                             WHERE role_name = 'admin'")
@@ -127,7 +124,6 @@ class Database:
         Adds administrator role to given `chat_id` with given `expire_date`.
         If the user is already an admin, expire date is updated 
         """
-        self._validate_connection()
         self._connection.start_transaction()
         with self._connection.cursor() as cursor:
             cursor.execute(f"SELECT COUNT(chat_id) FROM chat_role_view \
@@ -153,7 +149,6 @@ class Database:
 
         Returns `True` if user exists
         """
-        self._validate_connection()
         with self._connection.cursor() as cursor:
             cursor.execute(f"SELECT COUNT(*) FROM chat \
                              WHERE id = {chat_id}")
@@ -167,7 +162,6 @@ class Database:
         """
         Search user's chats with role 'banned' in database.
         """
-        self._validate_connection()
         with self._connection.cursor() as cursor:
             cursor.execute(f"SELECT chat_id FROM chat_role_view \
                              WHERE role_name = 'banned'")
@@ -183,7 +177,6 @@ class Database:
         (as other `Database` methods)
         and returns `None`
         """
-        self._validate_connection()
         self._connection.start_transaction()
         with self._connection.cursor() as cursor:
             cursor.execute(f"INSERT INTO chat (id) \
@@ -203,7 +196,6 @@ class Database:
         (as other `Database` methods)
         and returns `None`
         """
-        self._validate_connection()
         self._connection.start_transaction()
         with self._connection.cursor() as cursor:
             statement = "INSERT INTO chat_role VALUES \
@@ -214,13 +206,29 @@ class Database:
             cursor.executemany(statement, chat_ids)
         self._connection.commit()
         return True
+    
+    @handle_mysql_errors
+    def unban_users(self, chat_ids: Sequence[int]) -> bool | None:
+        """
+        Remove 'banned' role from given `chat_ids`.
+        Does the opposite operation of the `ban_users` method. 
+        """
+        self._connection.start_transaction()
+        with self._connection.cursor() as cursor:
+            statement = "DELETE FROM chat_role WHERE \
+                        role_id = (SELECT id FROM role WHERE name = 'banned') \
+                        AND chat_id=%s"
+            chat_ids = [[chat] for chat in chat_ids]
+            cursor.executemany(statement, chat_ids)
+        self._connection.commit()
+        return True
+
 
     @handle_mysql_errors
     def search_book(self, rows_count: int, offset: int = 0):
         """
         Get list of available books in pairs (title, author)
         """
-        self._validate_connection()
         with self._connection.cursor() as cursor:
             cursor.execute(f"SELECT id, title, author FROM book \
                            ORDER BY id LIMIT {offset}, {rows_count}")
@@ -231,7 +239,6 @@ class Database:
         """
         Returns max page number of user's book
         """
-        self._validate_connection()
         with self._connection.cursor() as cursor:
             cursor.execute(f"SELECT MAX(num) FROM page WHERE book_id = \
                            (SELECT book_id FROM chat WHERE id = {chat_id})")
@@ -242,7 +249,6 @@ class Database:
     
     @handle_mysql_errors
     def update_chat_book(self, chat_id: int, book_id):
-        self._validate_connection()
         self._connection.start_transaction()
         with self._connection.cursor() as cursor:
             cursor.execute(f"UPDATE chat SET book_id = {book_id} \
@@ -254,7 +260,6 @@ class Database:
         """
         Get book metadata: title, author, description
         """
-        self._validate_connection()
         with self._connection.cursor() as cursor:
             cursor.execute(f"SELECT title, author, info \
                            FROM book WHERE id = {book_id}")
@@ -267,7 +272,6 @@ class Database:
         Text of page with number=`page_num` from user's book
         with chat_id=`chat_id`
         """
-        self._validate_connection()
         with self._connection.cursor() as cursor:
             cursor.execute(f"SELECT content FROM page WHERE \
                             num = {page_num} AND book_id = \

@@ -51,7 +51,9 @@ INVALID_ID_MSG = "Ошибка добавления нового админис�
 Попробуйте ещё раз. Для отмены напишите /cancel"
 INVALID_BAN_ID_MSG = "Ошибка! Невозможно забанить пользователей \
 с такими id или они уже забанены"
+INVALID_UNBAN_ID_MSG = "Ошибка! Невозможно разбанить пользователей с такими id"
 SUCCESS_BAN_MSG = "Вы забанили этих пользователей"
+SUCCESS_UNBAN_MSG = "Вы разбанили этих пользователей"
 CANCEL_MSG = "Действие отменено"
 FILE_UPLOADED_MSG = "Файл получен. Обработка..."
 FILE_DONE_MSG = "Файл загружен в базу данных!"
@@ -194,10 +196,24 @@ async def ban_chats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except ValueError:
         await context.bot.send_message(chat_id, INVALID_BAN_ID_MSG)
 
+@admin_check
+async def unban_chats(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
+    try:
+        ban_ids = list(map(int, context.args))
+        if db.unban_users(ban_ids) == None:
+            raise ValueError
+        await context.bot.send_message(chat_id, SUCCESS_UNBAN_MSG)
+    except ValueError:
+        await context.bot.send_message(chat_id, INVALID_UNBAN_ID_MSG)
+
 # there are no remove_admin method because new admin can remove old one 
 # (at least for now)
 
 def main():
+    global db
+    db = Database(DB_CONFIG)
+
     defaults = Defaults(parse_mode='HTML')
     applaction = ApplicationBuilder().defaults(defaults)     \
                                      .token(ADMIN_BOT_TOKEN) \
@@ -210,6 +226,7 @@ def main():
     my_id_handler = CommandHandler('myid', my_id)
     clear_cache = CommandHandler('clearcache', clear_download_cache)
     ban_chats_handler = CommandHandler('ban', ban_chats)
+    unban_chat_handler = CommandHandler('unban', unban_chats)
     new_admin_handler = ConversationHandler(
         entry_points=[CommandHandler('addadmin', new_admin)],
         states={ADD_STATE: [MessageHandler(filters.TEXT ^ filters.COMMAND, 
@@ -227,13 +244,16 @@ def main():
         my_id_handler,
         clear_cache,
         ban_chats_handler,
+        unban_chat_handler,
         show_admin_handler,
         new_admin_handler,
         reconnect_handler,
         upload_book_handler
     ])
+
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+
     applaction.run_polling()
 
 if __name__ == '__main__':
-    db = Database(DB_CONFIG)
     main()
