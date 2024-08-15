@@ -3,3 +3,4 @@ mysql-connector-python
 nltk
 pytest
 Pillow
+python-dotenv

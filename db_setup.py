@@ -53,7 +53,7 @@ def insert_admin(connection):
                 logging.info(f"admin insertion: {alias}")
                 curs.execute(statement.format(admin_id))
     else:
-        logging.info("skiping admin insertion")
+        logging.info("skipping admin insertion")
 
 
 if __name__ == '__main__':
