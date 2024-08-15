@@ -2,6 +2,7 @@ import logging
 import io
 import asyncio
 from functools import wraps 
+from datetime import datetime
 from typing import Callable, Set
 
 from telegram import Update
@@ -13,7 +14,7 @@ import nltk
 
 from database import Database
 from imgen import QuoteImage
-from config import BOT_TOKEN, DB_CONFIG 
+from config import BOT_TOKEN, DB_CONFIG, BANLIST_UPD_INTERVAL
 
 
 START_MSG = """
@@ -69,20 +70,35 @@ MAX_BUTTON_CHARS = 50
 db: Database
 img_generator: QuoteImage 
 banned_chats: Set[int]
+last_bans_update: datetime
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
 )
 
+
+def _update_bans():
+    """Lazy evaluated ban list update"""
+    global banned_chats, last_bans_update
+    cur_time = datetime.now()
+    if cur_time - last_bans_update > BANLIST_UPD_INTERVAL:
+        banned_chats = db.get_banned_users()
+        last_bans_update = cur_time
+
 def check_banned(func: Callable) -> Callable:
     @wraps(func)
     async def wrapper(update: Update,
                       context: ContextTypes.DEFAULT_TYPE,
                       *args, **kwargs):
-        if update.effective_chat.id not in banned_chats:
+        """Checks if user's chat is banned and permits actions or not"""
+        _update_bans()
+        chat_id = update.effective_chat.id
+        if chat_id not in banned_chats:
+            logging.info(f"chat {chat_id} invokes `{func.__name__}`")
             return await func(update, context, *args, **kwargs)
         else:
+            logging.info(f"BANNED chat {chat_id} tried to send message")
             return ConversationHandler.END
     return wrapper
 
@@ -273,9 +289,6 @@ async def handle_invalid_button(update: Update, context: ContextTypes.DEFAULT_TY
     await update.callback_query.answer()
     await update.effective_message.edit_text(INVALID_BUTTON_MSG)
 
-async def update_bans(_: ContextTypes.DEFAULT_TYPE):
-    banned_chats.update(db.get_banned_users())
-
 def run_bot():
     defaults = Defaults(parse_mode='HTML')
     application = ApplicationBuilder().defaults(defaults)\
@@ -318,8 +331,7 @@ def run_bot():
 
     application.add_handler(CallbackQueryHandler(handle_invalid_button))
 
-    # update banned users every 5 minutes
-    application.job_queue.run_repeating(update_bans, interval=60*5)
+    logging.getLogger("httpx").setLevel(logging.WARNING)
 
     application.run_polling()
 
@@ -327,4 +339,5 @@ if __name__ == '__main__':
     db = Database(DB_CONFIG)
     img_generator = QuoteImage()
     banned_chats = set(db.get_banned_users())
+    last_bans_update = datetime.now()
     run_bot()
