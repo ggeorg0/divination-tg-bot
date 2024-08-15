@@ -186,6 +186,7 @@ async def clear_download_cache(update: Update, context: ContextTypes.DEFAULT_TYP
         await context.bot.send_message(chat_id, m)
         await asyncio.sleep(1)
 
+@admin_check
 async def ban_chats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     try:
